@@ -103,3 +103,8 @@ def test_build_position_sizing_messages_includes_budget_and_context_answers():
 
     for answer in (ANSWERS.risk_budget, ANSWERS.location, ANSWERS.time_of_year, ANSWERS.locked_in_costs, ANSWERS.business_description):
         assert answer in user_content
+
+
+def test_position_sizing_prompt_treats_candidates_as_recurring_series():
+    assert "recurring series" in POSITION_SIZING_SYSTEM_PROMPT
+    assert "not by the month or date in the contract's title" in POSITION_SIZING_SYSTEM_PROMPT
