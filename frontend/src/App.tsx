@@ -1,13 +1,8 @@
 import './App.css'
+import LandingPage from './pages/landing/LandingPage'
 
 function App() {
-  return (
-    <main>
-      <h1>Hedgehog</h1>
-      <p>Hedge your business against the market factors that affect it.</p>
-      <a href="/questionnaire">Start</a>
-    </main>
-  )
+  return <LandingPage onStart={() => window.location.assign('/questionnaire')} />
 }
 
 export default App
