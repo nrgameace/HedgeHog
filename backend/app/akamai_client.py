@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+DEFAULT_REQUEST_TIMEOUT_SECONDS = 60.0
+
 
 class AkamaiConfigError(Exception):
     pass
@@ -38,18 +40,24 @@ class AkamaiConfig:
 def chat_complete(messages: list[dict[str, str]], *, temperature: float = 0.2, config: AkamaiConfig | None = None, client: httpx.Client | None = None) -> str:
     config = config or AkamaiConfig.from_env()
     owns_client = client is None
-    client = client or httpx.Client()
+    client = client or httpx.Client(timeout=DEFAULT_REQUEST_TIMEOUT_SECONDS)
     try:
         url = f"{config.base_url}/chat/completions"
         headers = {"Authorization": f"Bearer {config.api_key}"}
         body = {"model": config.chat_model, "messages": messages, "temperature": temperature}
-        response = client.post(url, headers=headers, json=body)
+        try:
+            response = client.post(url, headers=headers, json=body)
+        except httpx.HTTPError as exc:
+            raise AkamaiApiError(f"request to Akamai failed: {exc}") from exc
         if response.status_code != 200:
             raise AkamaiApiError(f"Akamai API returned {response.status_code}: {response.text}")
         try:
-            return response.json()["choices"][0]["message"]["content"]
-        except (KeyError, IndexError, TypeError) as exc:
+            content = response.json()["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError, ValueError) as exc:
             raise AkamaiApiError(f"unexpected Akamai API response shape: {response.text}") from exc
+        if not isinstance(content, str):
+            raise AkamaiApiError(f"Akamai API returned non-string content: {content!r}")
+        return content
     finally:
         if owns_client:
             client.close()

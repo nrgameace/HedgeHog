@@ -40,3 +40,19 @@ def test_build_trend_detection_messages_no_truncation_note_under_cap():
     messages = build_trend_detection_messages("ice cream shop", "rainy days", financials)
 
     assert "first 200" not in messages[1]["content"]
+
+
+def test_build_trend_detection_messages_no_truncation_note_at_exactly_200_rows():
+    financials = [{"date": f"2026-01-{i:03d}", "revenue": str(i)} for i in range(1, 201)]
+
+    messages = build_trend_detection_messages("ice cream shop", "rainy days", financials)
+
+    user_content = messages[1]["content"]
+    assert "first 200" not in user_content
+    assert financials[199]["date"] in user_content
+
+
+def test_build_trend_detection_messages_notes_zero_rows_for_empty_financials():
+    messages = build_trend_detection_messages("ice cream shop", "rainy days", [])
+
+    assert "0 rows" in messages[1]["content"]
