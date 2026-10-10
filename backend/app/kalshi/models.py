@@ -93,6 +93,7 @@ class Market:
     yes_ask_size: int
     no_ask_size: int
     notional_value: Decimal
+    strike_type: str
 
     @classmethod
     def from_api(cls, payload: dict) -> "Market":
@@ -101,6 +102,7 @@ class Market:
             event_ticker=payload.get("event_ticker") or "",
             title=payload.get("title") or "",
             status=payload.get("status") or "",
+            strike_type=payload.get("strike_type") or "",
             close_time=_timestamp(payload.get("close_time")),
             yes_ask=_dollars(payload.get("yes_ask_dollars")),
             no_ask=_dollars(payload.get("no_ask_dollars")),

@@ -104,6 +104,10 @@ again; nothing is saved between visits.
   - `client.py` — `KalshiClient` over httpx with an injectable transport
     (so tests need no network): `list_series()`, `list_markets()` with
     cursor pagination, `get_orderbook()`, `quotes_for_series()`.
+  - `candidates.py` — `find_options()` walks ranked series to actual
+    tradeable markets, nearest settlement first, dropping anything with
+    no reachable offer. Essential: 171 of 190 active `KXB200MS` markets
+    have no book, and a model shown those picks one confidently.
   - `search.py` — `rank_series()` narrows 14,942 series to the handful a
     model can reason over. Normalised IDF over titles, generic business
     words down-weighted, scores scaled by how much of the stated factor
@@ -113,6 +117,15 @@ again; nothing is saved between visits.
   `app/akamai_client.py` (the single HTTP client for the Akamai model):
   - `json_reply.py` — pulls a JSON object out of a reply that may be
     fenced, prefaced with prose, or both.
+  - `selection.py` — **Model call 2**: `select_market()` picks which
+    candidate market to hedge a factor with, how much is at stake, and
+    which way the factor has to move to hurt. The side is then *derived*
+    from that direction plus Kalshi's `strike_type`, not asked for: the
+    same risk flips sides with how a market is phrased (hurt by cold
+    means YES on "below 56" and NO on "above 63"), and buying the wrong
+    one amplifies the risk while still reporting a perfect hedge.
+    Hallucinated tickers, bad directions, implausible impacts and
+    unbuyable sides are all refused.
   - `vocabulary.py` — asks the model which words Kalshi would title a
     series with, then merges the validated proposal over a curated
     table, so `search.py`'s expansions are not a ceiling on which
@@ -129,6 +142,11 @@ again; nothing is saved between visits.
   Quillstack AI, an SF AI startup, 2024–2026), each with a detailed
   monthly `financials.csv` and a `background.md`. Build, test and demo
   against these instead of inventing data.
+- `backend/app/hedge/exposure.py` — converts `csv_parsing`'s untyped
+  string rows and the questionnaire's free-text `riskBudget` into the
+  Decimals sizing needs: fuzzy column matching, money parsing that
+  survives `$1,234.50` and `(500)`, trailing-month means, and a daily
+  rate so one exposure serves contract windows from a day to a year.
 - Not yet built: turning `hedgeable_categories` into the full
   `HedgeReport` shape (`bets`/`profitSeries`/`simulatedPeriod`) the
   frontend expects, cross-factor portfolio allocation, the Kalshi fee
