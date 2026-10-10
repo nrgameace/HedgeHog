@@ -266,7 +266,7 @@
 
 .landing-steps__item {
   padding: 28px 22px;
-  border-radius: 20px;
+  border-radius: 0;
   background: var(--hh-paper);
   box-shadow: 0 10px 24px -18px rgba(83, 53, 38, 0.6);
 }

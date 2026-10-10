@@ -14,7 +14,7 @@ import './landing.css'
 type LandingPageProps = { onStart: () => void }
 
 const STEPS = [
-  { Icon: NotebookIcon, title: 'Tell us about your business', body: 'Share what moves your sales — weather, fuel, ingredients — and upload your recent financials.' },
+  { Icon: NotebookIcon, title: 'Tell us about your business', body: 'Share what moves your sales, like weather, fuel and ingredients, and upload your recent financials.' },
   { Icon: TrendLensIcon, title: 'See what you can hedge', body: 'We spot the outside trends that are actually putting your revenue at risk right now.' },
   { Icon: BalanceIcon, title: 'Get a balanced plan', body: 'We suggest small, sized positions on Kalshi that pay off when a rough patch hits, keeping your cash flow even.' },
 ]
@@ -46,7 +46,7 @@ function LandingPage({ onStart }: LandingPageProps) {
         </header>
 
         <StoryScene eyebrow="The challenge" heading="Some things are out of your hands." graphic={<RainyDayGraphic />}>
-          <p>A rainy Saturday empties the patio. A spike in fuel prices eats into every delivery. You built your business with care — the weather and the markets shouldn't get the final say.</p>
+          <p>A rainy Saturday empties the patio. A spike in fuel prices eats into every delivery. You built your business with care. The weather and the markets shouldn't get the final say.</p>
         </StoryScene>
 
         <StoryScene eyebrow="The idea" heading="So we help you even things out." graphic={<SteadyCashflowGraphic />} layout="reversed">
