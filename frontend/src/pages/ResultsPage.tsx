@@ -3,11 +3,9 @@ import type { HedgeReport } from '../types'
 
 type ResultsPageProps = { report: HedgeReport; onStartOver: () => void }
 
-function ResultsPage({ report, onStartOver }: ResultsPageProps) {
+function HedgePlan({ report }: { report: HedgeReport }) {
   return (
-    <section className="results">
-      <h1>Your hedging plan</h1>
-
+    <>
       <h2>What could hurt your revenue</h2>
       <ul className="concerns">
         {report.concerns.map((concern) => (
@@ -45,7 +43,22 @@ function ResultsPage({ report, onStartOver }: ResultsPageProps) {
 
       <h2>Hedged vs. unhedged revenue</h2>
       <RevenueVolatilityChart series={report.revenueSeries} />
+    </>
+  )
+}
 
+function ResultsPage({ report, onStartOver }: ResultsPageProps) {
+  return (
+    <section className="results">
+      <h1>Your hedging plan</h1>
+      {report.bets.length > 0 ? (
+        <HedgePlan report={report} />
+      ) : (
+        <p className="empty-plan">
+          No clear hedges found. Nothing you described lines up with a market we can bet on. Try adding more detail about
+          what your business relies on and what has hurt it before.
+        </p>
+      )}
       <button type="button" onClick={onStartOver}>Start over</button>
     </section>
   )

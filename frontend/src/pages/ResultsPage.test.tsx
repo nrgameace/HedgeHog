@@ -29,4 +29,12 @@ describe('ResultsPage', () => {
 
     expect(onStartOver).toHaveBeenCalled()
   })
+
+  it('says so plainly when no clear hedges were found', () => {
+    render(<ResultsPage report={{ concerns: [], bets: [], revenueSeries: [] }} onStartOver={vi.fn()} />)
+
+    expect(screen.getByText(/no clear hedges found/i)).toBeInTheDocument()
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /start over/i })).toBeInTheDocument()
+  })
 })

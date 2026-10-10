@@ -28,8 +28,12 @@ sees the same ground truth. Project context/flow lives in
 
 ## Frontend ↔ backend contract: `POST /analyze`
 - Request: `multipart/form-data` with
-  - `answers` — JSON string `{"factors": string[], "expectedEarnings": number}`
-    (expected earnings are monthly, in USD)
+  - `answers` — JSON string, all free text (optional ones may be `""`):
+    `{"businessDescription", "customers", "location",
+    "operationalDependencies", "keyMaterials", "pastImpacts",
+    "timeOfYear", "lockedInCosts"}`. None are required yet (simulated
+    data), so any may be `""`. Earnings/costs come from the CSV, not here.
+    `lockedInCosts` lists things already protected — don't hedge them.
   - `financials` — the uploaded CSV file, **optional** for now (any
     columns; frontend caps it at 5 MB). Omitted when the user skips it.
 - Response: JSON matching `HedgeReport` in `frontend/src/types.ts`:
@@ -80,3 +84,10 @@ sees the same ground truth. Project context/flow lives in
   optional until the backend exists (simulated data only for now).
 - 2026-10-10 — Questionnaire has no suggested factors: owners type in
   whatever factors they believe impact them.
+- 2026-10-10 — Questionnaire reworked to 8 free-text questions that find
+  dependencies (business, customers, location, day-to-day reliance,
+  key materials, past impacts, time of year, locked-in costs); expected
+  earnings dropped because the CSV covers it.
+- 2026-10-10 — North-star demo data in `demo-data/`: two fixed
+  fictional businesses (ice cream shop, AI startup) with hand-built
+  monthly CSVs and background stories. No generator, no randomness.

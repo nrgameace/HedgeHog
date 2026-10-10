@@ -43,43 +43,6 @@ button:disabled {
   gap: 24px;
 }
 
-.add-factor {
-  display: flex;
-  gap: 8px;
-}
-
-.add-factor input {
-  flex: 1;
-  min-width: 0;
-}
-
-.factor-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.factor-list li {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 4px 4px 12px;
-  border-radius: 999px;
-  background: var(--accent-bg);
-  color: var(--text-h);
-}
-
-.factor-list button {
-  padding: 0 8px;
-  border: none;
-  background: none;
-  color: var(--text);
-  font-size: 1.1em;
-}
-
 .field {
   display: flex;
   flex-direction: column;
@@ -90,18 +53,22 @@ button:disabled {
   color: var(--text-h);
 }
 
-input[type='number'],
+.questionnaire > p {
+  margin-top: -12px;
+}
+
+textarea {
+  font: inherit;
+  resize: vertical;
+}
+
+textarea,
 input:not([type]) {
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg);
   color: var(--text-h);
-}
-
-.field a {
-  color: var(--accent);
-  font-size: 0.9em;
 }
 
 .field-error {
@@ -127,6 +94,13 @@ input:not([type]) {
 
 .concerns strong {
   color: var(--text-h);
+}
+
+.empty-plan {
+  margin-bottom: 24px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--surface);
 }
 
 .note {
