@@ -124,26 +124,49 @@ class TestErrors:
 class TestEnvironmentConfiguration:
     def test_mocked_by_default_so_nothing_calls_an_unconfigured_endpoint(self, monkeypatch):
         monkeypatch.delenv("MOCK_MODEL", raising=False)
-        monkeypatch.setenv("MODEL_BASE_URL", "https://inference.example/v1")
-        monkeypatch.setenv("MODEL_NAME", "qwen")
+        monkeypatch.setenv("AKAMAI_API_BASE_URL", "https://inference.example/v1")
+        monkeypatch.setenv("AKAMAI_CHAT_MODEL", "qwen")
 
         assert client_from_env() is None
 
     def test_returns_none_when_the_endpoint_is_not_configured(self, monkeypatch):
         monkeypatch.setenv("MOCK_MODEL", "false")
-        monkeypatch.delenv("MODEL_BASE_URL", raising=False)
-        monkeypatch.delenv("MODEL_NAME", raising=False)
+        monkeypatch.delenv("AKAMAI_API_BASE_URL", raising=False)
+        monkeypatch.delenv("AKAMAI_CHAT_MODEL", raising=False)
+
+        assert client_from_env() is None
+
+    def test_returns_none_when_the_endpoint_values_are_left_blank(self, monkeypatch):
+        """A copied .env with the keys present but empty must not look configured."""
+        monkeypatch.setenv("MOCK_MODEL", "false")
+        monkeypatch.setenv("AKAMAI_API_BASE_URL", "   ")
+        monkeypatch.setenv("AKAMAI_CHAT_MODEL", "")
 
         assert client_from_env() is None
 
     def test_builds_a_client_once_mocking_is_off_and_the_endpoint_is_set(self, monkeypatch):
         monkeypatch.setenv("MOCK_MODEL", "false")
-        monkeypatch.setenv("MODEL_BASE_URL", "https://inference.example/v1")
-        monkeypatch.setenv("MODEL_NAME", "qwen3-32b")
-        monkeypatch.setenv("MODEL_API_KEY", "secret")
+        monkeypatch.setenv("AKAMAI_API_BASE_URL", "https://inference.example/v1")
+        monkeypatch.setenv("AKAMAI_CHAT_MODEL", "qwen3-32b")
+        monkeypatch.setenv("AKAMAI_API_KEY", "secret")
 
         api = client_from_env()
 
         assert api is not None
         assert api.config.model == "qwen3-32b"
         assert api.config.api_key == "secret"
+
+    def test_strips_a_trailing_slash_so_the_path_does_not_double_up(self, monkeypatch):
+        monkeypatch.setenv("MOCK_MODEL", "false")
+        monkeypatch.setenv("AKAMAI_API_BASE_URL", "https://inference.example/v1/")
+        monkeypatch.setenv("AKAMAI_CHAT_MODEL", "qwen")
+
+        assert client_from_env().config.base_url == "https://inference.example/v1"
+
+    def test_a_blank_api_key_is_treated_as_absent(self, monkeypatch):
+        monkeypatch.setenv("MOCK_MODEL", "false")
+        monkeypatch.setenv("AKAMAI_API_BASE_URL", "https://inference.example/v1")
+        monkeypatch.setenv("AKAMAI_CHAT_MODEL", "qwen")
+        monkeypatch.setenv("AKAMAI_API_KEY", "")
+
+        assert client_from_env().config.api_key is None

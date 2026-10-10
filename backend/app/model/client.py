@@ -100,12 +100,17 @@ def client_from_env() -> ModelClient | None:
     if os.getenv("MOCK_MODEL", "true").strip().lower() != "false":
         return None
 
-    base_url, model = os.getenv("MODEL_BASE_URL"), os.getenv("MODEL_NAME")
+    base_url = (os.getenv("AKAMAI_API_BASE_URL") or "").strip()
+    model = (os.getenv("AKAMAI_CHAT_MODEL") or "").strip()
     if not base_url or not model:
         return None
 
     return ModelClient(
-        ModelConfig(base_url=base_url, model=model, api_key=os.getenv("MODEL_API_KEY"))
+        ModelConfig(
+            base_url=base_url.rstrip("/"),
+            model=model,
+            api_key=(os.getenv("AKAMAI_API_KEY") or "").strip() or None,
+        )
     )
 
 

@@ -6,7 +6,12 @@ EXAMPLE_FILE = Path(__file__).resolve().parent.parent / ".env.example"
 
 # Every variable the app reads from the environment, so the template cannot
 # drift from the code and leave someone with a key in the wrong place.
-DOCUMENTED_VARIABLES = ("MOCK_MODEL", "MODEL_BASE_URL", "MODEL_NAME", "MODEL_API_KEY")
+DOCUMENTED_VARIABLES = (
+    "MOCK_MODEL",
+    "AKAMAI_API_BASE_URL",
+    "AKAMAI_CHAT_MODEL",
+    "AKAMAI_API_KEY",
+)
 
 
 def test_the_example_file_is_committed_for_people_to_copy():
@@ -28,8 +33,8 @@ def test_the_example_carries_no_real_values():
         if "=" in line and not line.startswith("#")
     )
 
-    assert assignments["MODEL_API_KEY"] == ""
-    assert assignments["MODEL_BASE_URL"] == ""
+    assert assignments["AKAMAI_API_KEY"] == ""
+    assert assignments["AKAMAI_API_BASE_URL"] == ""
     assert assignments["MOCK_MODEL"] == "true"
 
 
