@@ -76,7 +76,7 @@ npm install
 npm run dev
 ```
 
-The frontend runs on simulated results out of the box (`VITE_USE_MOCK_API=true` by default — see `frontend/.env.example`), so it's fully demoable with zero backend setup. Flip that flag once the backend is running to hit the real `/analyze` endpoint.
+The frontend calls the real backend at `http://localhost:8000` by default, so start the backend first. Upload a financials CSV with a month column and a profit column (the demo CSVs in `demo-data/` work as-is); an analysis takes about 30–40 seconds. To demo without a backend, set `VITE_USE_MOCK_API=true` (see `frontend/.env.example`) and the results page shows the simulated Two Scoops Creamery plan.
 
 **Tests**
 ```bash
@@ -92,11 +92,20 @@ hedgehog/
 ├── backend/           FastAPI app (questionnaire ingestion, LLM calls)
 │   └── app/
 │       ├── routes/analyze.py      POST /analyze
+│       ├── pipeline.py            runs the whole analysis, step by step
 │       ├── questionnaire.py       parses the 9-question intake form
-│       ├── prompts.py             the trend-detection system prompt
+│       ├── csv_parsing.py         financials CSV ingestion
+│       ├── financial_history.py   picks the year to simulate; expected vs. actual profit
+│       ├── prompts.py             system prompts for both model calls
 │       ├── trend_detection.py     Model call 1: what can this business hedge?
-│       ├── akamai_client.py       HTTP client for the Akamai-hosted model
-│       └── csv_parsing.py         financials CSV ingestion
+│       ├── kalshi_client.py       live Kalshi market data (public API)
+│       ├── market_catalog.py      which Kalshi series to offer, plus an offline fallback
+│       ├── position_sizing.py     Model call 2: which markets, which side, how much
+│       ├── risk_budget.py         reads the owner's budget ("$800 a month")
+│       ├── backtest.py            budget scaling and simulated monthly payouts
+│       ├── hedge_report.py        the response the results page renders
+│       ├── model_json.py          parses JSON replies from the model
+│       └── akamai_client.py       HTTP client for the Akamai-hosted model
 ├── demo-data/         two hand-built fictional businesses used for every demo
 └── docs/              implementation plans, screenshots
 ```
@@ -111,7 +120,10 @@ Built end-to-end for the hackathon demo:
 - ✅ Landing → questionnaire → results flow (frontend)
 - ✅ `POST /analyze` backend endpoint, fully tested
 - ✅ Real LLM call to the Akamai-hosted model: given a business's answers and financials, it identifies hedgeable risk categories with grounded reasoning
-- 🚧 Position sizing (turning a hedgeable category into a sized Kalshi trade) and live Kalshi market data — in progress; the frontend currently demos this step on realistic simulated data
+- ✅ Live Kalshi market data from the public API, with a built-in fallback list if Kalshi is unreachable
+- ✅ Second LLM call for position sizing: the hedgeable categories from the first call go in, sized Kalshi trades (market, side, stake, months) come out, scaled to the owner's risk budget
+- ✅ Each trade is simulated against the business's worst recent year from its own CSV; the results page shows the payouts and how much of the bad-month shortfall they cover
+- Trades are paper only: no real money moves
 
 ## Team & acknowledgments
 
