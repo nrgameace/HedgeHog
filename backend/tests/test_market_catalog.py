@@ -1,3 +1,5 @@
+import time
+
 import httpx
 
 from app.market_catalog import FALLBACK_MARKETS, SERIES_TICKERS, load_candidate_markets
@@ -35,3 +37,21 @@ def test_fallback_has_one_market_per_series():
 
 def test_fallback_prices_are_tradeable():
     assert all(0.03 <= market.yes_price <= 0.97 for market in FALLBACK_MARKETS)
+
+
+def test_load_candidates_returns_by_deadline_when_a_series_hangs():
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.params["series_ticker"] == "KXRAINAUSM":
+            time.sleep(2)
+        return _one_market_per_series_ok(request)
+
+    started = time.monotonic()
+    markets = load_candidate_markets(_client(handler), deadline_seconds=0.5)
+
+    assert time.monotonic() - started < 1.5
+    assert len(markets) == len(SERIES_TICKERS) - 1
+
+
+def _one_market_per_series_ok(request: httpx.Request) -> httpx.Response:
+    series = request.url.params["series_ticker"]
+    return httpx.Response(200, json={"markets": [{"ticker": f"{series}-X", "title": series, "yes_sub_title": "", "yes_ask_dollars": "0.5000"}]})

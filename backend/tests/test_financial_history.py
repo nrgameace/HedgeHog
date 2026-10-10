@@ -102,3 +102,37 @@ def test_monthly_notes_returns_nonempty_notes_for_year():
 
 def test_monthly_notes_without_notes_column_is_empty():
     assert monthly_notes(_year_rows(2024, [10] * 12), 2024) == {}
+
+
+def test_reads_us_style_dates():
+    rows = [{"date": f"{month + 1}/1/2024", "profit": "10"} for month in range(12)]
+
+    assert build_profit_history(rows).simulated_year == 2024
+
+
+def test_reads_year_slash_month_dates():
+    rows = [{"month": f"2024/{month + 1:02d}", "profit": "10"} for month in range(12)]
+
+    assert build_profit_history(rows).simulated_year == 2024
+
+
+def test_reads_accounting_style_negatives():
+    rows = _year_rows(2024, [10] * 12)
+    rows[4]["operating_income"] = "(4,724)"
+
+    assert build_profit_history(rows).points[4].actual == -4724
+
+
+@pytest.mark.parametrize("cell", ["NaN", "nan", "inf", "-Infinity"])
+def test_skips_non_finite_profit(cell):
+    rows = _year_rows(2023, [10] * 12) + _year_rows(2024, [10] * 12)
+    rows[-1]["operating_income"] = cell
+
+    assert build_profit_history(rows).simulated_year == 2023
+
+
+def test_raises_clear_error_when_no_dates_parse():
+    rows = [{"date": "January 2024", "profit": "10"}]
+
+    with pytest.raises(FinancialHistoryError, match="Couldn't read the dates in column 'date'"):
+        build_profit_history(rows)

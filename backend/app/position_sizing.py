@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass
 
 import httpx
@@ -11,7 +12,7 @@ from app.questionnaire import QuestionnaireAnswers
 from app.trend_detection import HedgeableCategory
 
 SIDES = ("YES", "NO")
-TEXT_FIELDS = ("frequency", "riskExplanation", "rationale")
+TEXT_FIELDS = ("category", "ticker", "side", "frequency", "riskExplanation", "rationale")
 
 
 @dataclass
@@ -38,7 +39,7 @@ def _valid_months(value: object) -> list[int]:
 
 
 def _valid_amount(value: object) -> int | None:
-    if type(value) not in (int, float) or value <= 0:
+    if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:
         return None
     return max(round(value), 1)
 
