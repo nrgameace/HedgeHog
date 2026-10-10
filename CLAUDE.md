@@ -36,8 +36,9 @@ again; nothing is saved between visits.
 2. **Questionnaire** — the owner answers free-text questions about how
    their company works: what it does, its customers, location, what it
    relies on day to day, the materials/services it uses most, what
-   outside events have hurt it, which times of year matter, and which
-   costs are locked in. Nothing the financials CSV already reports
+   outside events have hurt it, which times of year matter, which costs
+   are locked in at a set price, and how much budget they have for risk
+   mitigation (sizes the bets). Nothing the financials CSV already reports
    (earnings, costs) is asked. They can attach a CSV of their financials.
 3. **Submit** — triggers the backend pipeline:
    a. **Model call 1 — trend detection**: given the uploaded financials
@@ -57,13 +58,14 @@ again; nothing is saved between visits.
   implementation went green).
 - `frontend/` — full home → questionnaire → results flow built via TDD,
   running on **mock data** (`MOCK_API` in `frontend/src/api/client.ts`,
-  on by default). Questionnaire asks the 8 free-text questions in step 2
+  on by default). Questionnaire asks the 9 free-text questions in step 2
   (none required while the app runs on simulated data), defined as one list in `frontend/src/pages/QuestionnairePage.tsx`,
   plus an **optional** CSV upload (any shape, max 5 MB) — optional while
   the app runs on simulated data. The mock report spots hedgeable
   dependencies with keyword rules (`frontend/src/api/mockReport.ts`),
-  skips anything listed as locked in, and sizes bets at 5% of the CSV's
-  average monthly revenue (or a demo figure without a CSV). Results
+  skips anything listed as locked in, and sizes total bets to the owner's
+  risk budget — or, without one, 5% of the CSV's average monthly revenue
+  (or a demo figure without a CSV). Results
   show concerns, recommended bets (labelled simulated) and a Recharts
   hedged-vs-unhedged revenue chart. Screens are React state in
   `App.tsx` (no router), so a refresh starts over.

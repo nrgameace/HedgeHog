@@ -9,6 +9,7 @@ export type QuestionnaireAnswers = {
   pastImpacts: string
   timeOfYear: string
   lockedInCosts: string
+  riskBudget: string
 }
 
 export type Concern = {

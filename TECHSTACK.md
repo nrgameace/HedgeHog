@@ -31,9 +31,11 @@ sees the same ground truth. Project context/flow lives in
   - `answers` — JSON string, all free text (optional ones may be `""`):
     `{"businessDescription", "customers", "location",
     "operationalDependencies", "keyMaterials", "pastImpacts",
-    "timeOfYear", "lockedInCosts"}`. None are required yet (simulated
+    "timeOfYear", "lockedInCosts", "riskBudget"}`. None are required yet (simulated
     data), so any may be `""`. Earnings/costs come from the CSV, not here.
     `lockedInCosts` lists things already protected — don't hedge them.
+    `riskBudget` is free text like "$800 a month"; size total bets to it
+    (the mock reads the first amount as monthly, "a year" ÷ 12).
   - `financials` — the uploaded CSV file, **optional** for now (any
     columns; frontend caps it at 5 MB). Omitted when the user skips it.
 - Response: JSON matching `HedgeReport` in `frontend/src/types.ts`:
@@ -84,6 +86,9 @@ sees the same ground truth. Project context/flow lives in
   optional until the backend exists (simulated data only for now).
 - 2026-10-10 — Questionnaire has no suggested factors: owners type in
   whatever factors they believe impact them.
+- 2026-10-10 — Added a 9th question, the monthly risk-mitigation budget,
+  which caps total recommended bets; locked-in question reworded to give
+  examples (fixed-price contracts, fixed-rate loans, long leases).
 - 2026-10-10 — Questionnaire reworked to 8 free-text questions that find
   dependencies (business, customers, location, day-to-day reliance,
   key materials, past impacts, time of year, locked-in costs); expected

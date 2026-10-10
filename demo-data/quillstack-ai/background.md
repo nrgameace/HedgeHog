@@ -65,7 +65,8 @@ weather. Its financials are in [`financials.csv`](financials.csv): 31 months, Ma
 | What materials or services do you use the most? | LLM API tokens are our biggest cost, then GPU hours and AWS hosting. |
 | What outside events have hurt your business before, or worry you most? | GPU prices spiked in late 2024 and cut our margin to 40%. Fed rate cuts shrank the interest on our cash. A proposed state AI-liability regulation made firms pause purchases and we lost our largest customer for two months. A weak funding market or a Nasdaq selloff would make our Series A much harder. |
 | What times of year matter most to your business, and why? | Law firms freeze spending in December and buy in Q1 when new budgets open. We need to raise our Series A in early 2027. |
-| Are any of your costs locked in? | Our office lease is fixed through February 2027. |
+| Are any of your costs locked in at a set price, like a fixed-price supplier contract, a fixed-rate loan or a long-term lease? | Our office lease is fixed through February 2027. |
+| How much budget would you have for risk mitigation? | Up to $6,000 a month. |
 
 ## What Hedgehog should find (judging checklist)
 

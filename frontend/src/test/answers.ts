@@ -9,6 +9,7 @@ export const blankAnswers: QuestionnaireAnswers = {
   pastImpacts: '',
   timeOfYear: '',
   lockedInCosts: '',
+  riskBudget: '',
 }
 
 // North-star demo answers, copied from demo-data/*/background.md ("Demo answers"). Keep in sync.
@@ -27,6 +28,7 @@ export const twoScoopsCreamery: QuestionnaireAnswers = {
   timeOfYear:
     'June through August is over a third of our year, so a bad summer is a bad year. Winter is slow. Spring and December are big for catering.',
   lockedInCosts: 'Our dairy is on a fixed-price contract with a co-op through December 2026.',
+  riskBudget: 'About $800 a month.',
 }
 
 export const quillstackAi: QuestionnaireAnswers = {
@@ -41,6 +43,7 @@ export const quillstackAi: QuestionnaireAnswers = {
     'GPU prices spiked in late 2024 and cut our margin to 40%. Fed rate cuts shrank the interest on our cash. A proposed state AI-liability regulation made firms pause purchases and we lost our largest customer for two months. A weak funding market or a Nasdaq selloff would make our Series A much harder.',
   timeOfYear: 'Law firms freeze spending in December and buy in Q1 when new budgets open. We need to raise our Series A in early 2027.',
   lockedInCosts: 'Our office lease is fixed through February 2027.',
+  riskBudget: 'Up to $6,000 a month.',
 }
 
 export const iceCreamShop: QuestionnaireAnswers = {
@@ -52,4 +55,5 @@ export const iceCreamShop: QuestionnaireAnswers = {
   pastImpacts: 'Rainy weekends',
   timeOfYear: 'Summer is our busy season',
   lockedInCosts: '',
+  riskBudget: '',
 }

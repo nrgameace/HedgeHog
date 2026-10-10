@@ -14,7 +14,13 @@ const QUESTIONS: Question[] = [
   { id: 'keyMaterials', label: 'What materials or services do you use the most?', example: 'Dairy, sugar, electricity, gas for the van', multiline: true },
   { id: 'pastImpacts', label: 'What outside events have hurt your business before, or worry you most?', example: 'Rainy weekends, heat waves, gas price spikes', multiline: true },
   { id: 'timeOfYear', label: 'What times of year matter most to your business, and why?', example: 'June–August is tourist season; winter is slow', multiline: true },
-  { id: 'lockedInCosts', label: 'Are any of your costs locked in?', example: 'Fixed-price milk contract through 2027; fixed-rate loan', multiline: true },
+  {
+    id: 'lockedInCosts',
+    label: 'Are any of your costs locked in at a set price, like a fixed-price supplier contract, a fixed-rate loan or a long-term lease?',
+    example: 'Milk is on a fixed-price contract through 2027; our lease is fixed through 2028',
+    multiline: true,
+  },
+  { id: 'riskBudget', label: 'How much budget would you have for risk mitigation?', example: '$500 a month' },
 ]
 
 const EMPTY_ANSWERS = Object.fromEntries(QUESTIONS.map((question) => [question.id, ''])) as QuestionnaireAnswers
