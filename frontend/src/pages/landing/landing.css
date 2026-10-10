@@ -268,7 +268,9 @@
   padding: 28px 22px;
   border-radius: 0;
   background: var(--hh-paper);
-  box-shadow: 0 10px 24px -18px rgba(83, 53, 38, 0.6);
+  border: 2px solid var(--hh-bark);
+  /* Layered border: a solid offset copy of the frame, no blur. */
+  box-shadow: 6px 6px 0 var(--hh-bark);
 }
 
 .landing-steps__item h3 {
