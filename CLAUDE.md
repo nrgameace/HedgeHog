@@ -21,9 +21,16 @@ endpoints) wherever feasible without costing significant time.
 ## Demo scenarios
 Two scenarios are being built, deliberately chosen to exercise opposite
 ends of the contract-horizon range:
-1. **Ice cream shop** — short-horizon weather contracts (daily).
+1. **Ice cream shop** — short-horizon daily **temperature** contracts in
+   a major city. Not rain, and not Kansas City: Kalshi has no KC weather
+   series, and daily rain barely exists (`RAINSEA` is the only clean
+   one), while daily temperature covers many cities. A cold day also
+   suppresses ice cream demand more reliably than a rainy one. The shop
+   is hurt when it is *cold*, so the hedge buys the side that pays on a
+   cold outcome.
 2. **AI startup** — longer-horizon GPU/compute pricing contracts
-   (weekly through quarterly).
+   (weekly through quarterly), against Kalshi's B200 compute-price
+   family. Hurt when compute prices *rise*.
 
 Both are confirmed to have real Kalshi series behind them (verified
 2026-10-10, see TECHSTACK.md for tickers). This is the main reason
@@ -139,8 +146,13 @@ the contract resolves on**, so:
   `GET /markets` against production returns 200 with no credentials, so
   the demo needs no Kalshi keys. See TECHSTACK.md for the signing scheme
   if real order placement is ever added.
-- Hedge budget: does the questionnaire collect it, or is it derived as a
-  % of revenue? `size_position()` needs a dollar budget.
+- ~~Hedge budget: does the questionnaire collect it, or is it derived as
+  a % of revenue?~~ **Resolved 2026-10-10**: the questionnaire collects
+  it as a new field. **This needs a frontend + endpoint change owned by
+  whoever holds the questionnaire** — add it to `QuestionnaireAnswers`,
+  the form, and whatever submit endpoint the two sides settle on.
+  `size_position()` already takes `budget` and reports
+  `Constraint.BUDGET` plus `hedge_ratio` when it binds.
 - Hedge horizon: over what period is the owner trying to smooth revenue?
   This bounds which contract windows are eligible, but individual legs
   keep their own settlement windows regardless (see Contract horizons).

@@ -150,6 +150,17 @@ temperature has broad city coverage: `KXHIGHNY`, `HIGHAUS`, `KXLOWTSFO`,
   figure paired with a daily contract over-hedges ~30x while every
   intermediate step stays internally consistent, so the window is made
   impossible to omit rather than left to a naming convention.
+- 2026-10-10 — Model/host: a Qwen model on Akamai, settling both the
+  Akamai-product and model-provider questions.
+- 2026-10-10 — Hedge budget is collected as a questionnaire field, not
+  derived from revenue. Needs a frontend + endpoint change (see
+  CLAUDE.md open questions).
+- 2026-10-10 — Ice cream scenario uses daily **temperature** in a major
+  city rather than rain in Kansas City. Kalshi has no KC weather series
+  and daily rain is nearly absent, while daily temperature covers many
+  cities. Daily US high-temp series include `KXHIGHNY` (NYC) and
+  `HIGHAUS` (Austin); low-temp adds `KXLOWTSFO`, `KXLOWMIA`,
+  `KXLOWPHIL`, `KXLOWTSATX`.
 - Not yet decided: Kalshi fee schedule. `size_position()` takes
   `fee_per_contract` as a parameter rather than embedding a formula —
   pull the live schedule into one place before the demo.
