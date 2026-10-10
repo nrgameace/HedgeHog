@@ -61,13 +61,16 @@ again; nothing is saved between visits.
   on by default). Questionnaire asks the 9 free-text questions in step 2
   (none required while the app runs on simulated data), defined as one list in `frontend/src/pages/QuestionnairePage.tsx`,
   plus an **optional** CSV upload (any shape, max 5 MB) — optional while
-  the app runs on simulated data. The mock report spots hedgeable
-  dependencies with keyword rules (`frontend/src/api/mockReport.ts`),
-  skips anything listed as locked in, and sizes total bets to the owner's
-  risk budget — or, without one, 5% of the CSV's average monthly revenue
-  (or a demo figure without a CSV). Results
-  show concerns, recommended bets (labelled simulated) and a Recharts
-  hedged-vs-unhedged revenue chart. Screens are React state in
+  the app runs on simulated data. Since the backend isn't hooked up,
+  the results page **always shows simulated results for Two Scoops
+  Creamery**, whatever is entered (`frontend/src/api/twoScoopsReport.ts`):
+  six fixed Kalshi trades simulated against its real 2024 monthly profit
+  (rain paid out in the washed-out May–June). The results table shows
+  each trade's risk ("what could hurt your profit"), market, side, amount per trade, frequency, reasoning, net
+  for the year and variance mitigation (share of the bad-month shortfall
+  covered — `frontend/src/report/tradeImpact.ts`), with totals at the
+  bottom. The graph shows the total trade impact; clicking a row shows
+  that trade's graph, clicking the totals row goes back. Screens are React state in
   `App.tsx` (no router), so a refresh starts over.
 - `demo-data/` — **the north-star simulated data**: two fictional
   businesses (Two Scoops Creamery, an Austin ice cream shop, 2016–2026;

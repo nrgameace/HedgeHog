@@ -39,9 +39,12 @@ sees the same ground truth. Project context/flow lives in
   - `financials` — the uploaded CSV file, **optional** for now (any
     columns; frontend caps it at 5 MB). Omitted when the user skips it.
 - Response: JSON matching `HedgeReport` in `frontend/src/types.ts`:
-  `{"concerns": [{factor, explanation}], "bets": [{market, ticker,
-  side: "YES"|"NO", amountUsd, rationale}], "revenueSeries": [{period,
-  hedged, unhedged}]}`
+  `{"bets": [{risk: {factor, explanation}, market, ticker,
+  side: "YES"|"NO", amountUsd (stake per trade), frequency (label),
+  tradeMonths (0=Jan), rationale, monthlyNetUsd (12 values: payouts minus
+  stakes)}], "profitSeries": [{period, expected, actual}],
+  "simulatedPeriod"}`. The frontend derives totals and variance
+  mitigation from these.
 
 ## Backend
 - **Language/framework**: Python + FastAPI

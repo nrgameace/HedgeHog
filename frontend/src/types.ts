@@ -18,21 +18,30 @@ export type Concern = {
 }
 
 export type Bet = {
+  // What could hurt profit, which this trade protects against.
+  risk: Concern
   market: string
   ticker: string
   side: 'YES' | 'NO'
+  // Stake each time the trade is placed.
   amountUsd: number
+  frequency: string
+  // Months (0 = Jan) in which the trade is placed.
+  tradeMonths: number[]
   rationale: string
+  // Payouts minus stakes for each month of the simulated year.
+  monthlyNetUsd: number[]
 }
 
-export type RevenuePoint = {
+export type ProfitPoint = {
   period: string
-  hedged: number
-  unhedged: number
+  // Profit in a normal year, and what the business actually made.
+  expected: number
+  actual: number
 }
 
 export type HedgeReport = {
-  concerns: Concern[]
   bets: Bet[]
-  revenueSeries: RevenuePoint[]
+  profitSeries: ProfitPoint[]
+  simulatedPeriod: string
 }

@@ -1,34 +1,24 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { iceCreamShop } from '../test/answers'
+import { blankAnswers, iceCreamShop } from '../test/answers'
 import { submitQuestionnaire } from './client'
+import { twoScoopsReport } from './twoScoopsReport'
 
 const answers = iceCreamShop
 const file = new File(['month,revenue\n2026-01,40000\n2026-02,40000'], 'financials.csv', { type: 'text/csv' })
-const totalBets = (report: Awaited<ReturnType<typeof submitQuestionnaire>>) => report.bets.reduce((sum, bet) => sum + bet.amountUsd, 0)
 
 describe('submitQuestionnaire', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
   })
 
-  it('in mock mode, returns a report built from the answers', async () => {
-    const report = await submitQuestionnaire(answers, null, { useMock: true, mockDelayMs: 0 })
-
-    expect(report.bets.length).toBeGreaterThan(0)
-    expect(report.revenueSeries.length).toBeGreaterThan(0)
-  })
-
-  it('in mock mode, sizes bets from the uploaded CSV revenue when there is one', async () => {
-    const withoutCsv = await submitQuestionnaire(answers, null, { useMock: true, mockDelayMs: 0 })
-    const withCsv = await submitQuestionnaire(answers, file, { useMock: true, mockDelayMs: 0 })
-
-    expect(totalBets(withCsv)).toBeLessThanOrEqual(2000)
-    expect(totalBets(withCsv)).toBeGreaterThan(totalBets(withoutCsv))
+  it('in mock mode, always shows the simulated Two Scoops Creamery results, whatever was entered', async () => {
+    expect(await submitQuestionnaire(blankAnswers, null, { useMock: true, mockDelayMs: 0 })).toEqual(twoScoopsReport())
+    expect(await submitQuestionnaire(answers, file, { useMock: true, mockDelayMs: 0 })).toEqual(twoScoopsReport())
   })
 
   it('in real mode, posts the answers and the file to /analyze', async () => {
-    const report = { concerns: [], bets: [], revenueSeries: [] }
+    const report = { bets: [], profitSeries: [], simulatedPeriod: '' }
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(report), { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
 
