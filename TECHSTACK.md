@@ -19,6 +19,32 @@ sees the same ground truth. Project context/flow lives in
   - Run: `cd frontend && npm run test` (or `npx vitest run`)
 - **Hosting**: Vercel
 - **Linting**: oxlint (bundled by the Vite template)
+- **Charts**: Recharts
+- **Navigation**: no router — `App.tsx` holds the current screen in
+  React state (fits the no-persistence flow; no Vercel rewrites needed)
+- **Mock vs. real backend**: `VITE_USE_MOCK_API` (default mock) and
+  `VITE_API_URL` (default `http://localhost:8000`); see
+  `frontend/.env.example`
+
+## Frontend ↔ backend contract: `POST /analyze`
+- Request: `multipart/form-data` with
+  - `answers` — JSON string, all free text (optional ones may be `""`):
+    `{"businessDescription", "customers", "location",
+    "operationalDependencies", "keyMaterials", "pastImpacts",
+    "timeOfYear", "lockedInCosts", "riskBudget"}`. None are required yet (simulated
+    data), so any may be `""`. Earnings/costs come from the CSV, not here.
+    `lockedInCosts` lists things already protected — don't hedge them.
+    `riskBudget` is free text like "$800 a month"; size total bets to it
+    (the mock reads the first amount as monthly, "a year" ÷ 12).
+  - `financials` — the uploaded CSV file, **optional** for now (any
+    columns; frontend caps it at 5 MB). Omitted when the user skips it.
+- Response: JSON matching `HedgeReport` in `frontend/src/types.ts`:
+  `{"bets": [{risk: {factor, explanation}, market, ticker,
+  side: "YES"|"NO", amountUsd (stake per trade), frequency (label),
+  tradeMonths (0=Jan), rationale, monthlyNetUsd (12 values: payouts minus
+  stakes)}], "profitSeries": [{period, expected, actual}],
+  "simulatedPeriod"}`. The frontend derives totals and variance
+  mitigation from these.
 
 ## Backend
 - **Language/framework**: Python + FastAPI
@@ -35,35 +61,30 @@ sees the same ground truth. Project context/flow lives in
 - **Hosting**: Akamai
 
 ## Model / LLM
-- **Model**: a **Qwen** model hosted on **Akamai**, queried by the
-  backend over HTTP. This settles both the "which Akamai product" and
-  "which model provider" questions.
-- **Wire format assumed OpenAI-compatible**: `POST {MODEL_BASE_URL}/chat/
-  completions` with `{model, messages, temperature, max_tokens}`, reply
-  read from `choices[0].message.content`. `backend/app/model/client.py`
-  is the only file to change if Akamai differs.
-- **Configuration** (all env vars, read by `client_from_env()`):
-  - `MOCK_MODEL` — defaults to `true`. Must be explicitly `false` before
-    anything calls out, so an unconfigured endpoint cannot be hit by
-    accident. When unset or `true`, callers fall back to curated
-    defaults and the pipeline still runs end to end.
-  - `MODEL_BASE_URL`, `MODEL_NAME`, `MODEL_API_KEY` (optional).
-- Calls run at `temperature=0`: these are classification and vocabulary
-  lookups, where sampling variety is a liability.
-- Model replies are never trusted directly. `complete_json()` tolerates
-  markdown fences, surrounding prose and nested objects, and raises
-  rather than returning junk; every caller validates the parsed result
-  and degrades to a curated default on failure.
-- Still to confirm: exact Qwen variant, and whether Akamai really is
-  OpenAI-compatible. JSON adherence needs testing early — it is the most
-  likely place a smaller model misbehaves.
-- Hosted on Akamai; the backend queries it over HTTP.
+- Hosted on Akamai; the backend queries it over HTTP at
+  `https://ws.akamai-workshops.com/v1` — OpenAI Chat Completions-
+  compatible (`POST /chat/completions`, `Authorization: Bearer <key>`),
+  served by vLLM running `Qwen/Qwen3.8-27B-FP8` (confirmed live;
+  reasoning/thinking mode off by default, so no `<think>` stripping
+  needed). Model names: `hackathon-chat` (text), `hackathon-image`
+  (unused so far), `hackathon-embedding` (unused so far).
+- **`app/akamai_client.py` is the one HTTP client for the model.**
+  Anything that needs the model goes through `chat_complete`; there is
+  deliberately no second client.
+- Model replies are never trusted directly. `app/model/json_reply.py`
+  pulls the JSON object out of a reply that may be fenced, prefaced with
+  prose, or both, and raises rather than returning junk. Every caller
+  validates the parsed result and degrades to a safe default rather than
+  failing the request.
 - Two sequential model calls per submission:
-  1. **Trend detection** — given uploaded financials + stated risk
-     factors, identify which trends are currently hedgeable.
-  2. **Position sizing** — given a hedgeable trend, decide which Kalshi
-     market/position to bet on and how much.
-- Not yet decided: exact model(s)/provider behind these two calls.
+  1. **Trend detection** — **implemented** (`backend/app/trend_detection.py`,
+     wired into `POST /analyze`). Given the 9 questionnaire answers +
+     parsed financials CSV (capped at 200 rows in the prompt), returns
+     1–5 hedgeable categories as `{category, label, reasoning}`.
+     Temperature 0.2. Request timeout 60s.
+  2. **Position sizing** — math, Kalshi client and market retrieval
+     built (`app/hedge/`, `app/kalshi/`); the model call that picks a
+     market and direction is the remaining piece.
 
 ## External APIs
 - **Kalshi API**: real API calls for live market data. Trade placement
@@ -151,6 +172,34 @@ temperature has broad city coverage: `KXHIGHNY`, `HIGHAUS`, `KXLOWTSFO`,
 - 2026-10-10 — No login/auth, no persistence: every visit re-collects
   the questionnaire + CSV instead of storing accounts/sessions.
 - 2026-10-10 — TDD required for all code, frontend and backend.
+- 2026-10-10 — Frontend: screens in React state instead of a router;
+  Recharts for the revenue chart; mock API on by default until
+  `/analyze` exists.
+- 2026-10-10 — Financials CSV: any shape accepted, only limit is 5 MB;
+  optional until the backend exists (simulated data only for now).
+- 2026-10-10 — Questionnaire has no suggested factors: owners type in
+  whatever factors they believe impact them.
+- 2026-10-10 — Added a 9th question, the monthly risk-mitigation budget,
+  which caps total recommended bets; locked-in question reworded to give
+  examples (fixed-price contracts, fixed-rate loans, long leases).
+- 2026-10-10 — Questionnaire reworked to 8 free-text questions that find
+  dependencies (business, customers, location, day-to-day reliance,
+  key materials, past impacts, time of year, locked-in costs); expected
+  earnings dropped because the CSV covers it.
+- 2026-10-10 — North-star demo data in `demo-data/`: two fixed
+  fictional businesses (ice cream shop, AI startup) with hand-built
+  monthly CSVs and background stories. No generator, no randomness.
+- 2026-10-10 — Backend `POST /analyze` built and wired to the real
+  Akamai trend-detection call. Response is `{"hedgeable_categories":
+  [...]}` only, not the full `HedgeReport` the frontend's contract
+  documents above — position sizing and Kalshi aren't built yet, so the
+  frontend should stay on `MOCK_API` until that lands.
+- 2026-10-10 — `chat_complete`'s blocking `httpx` call is run via
+  FastAPI's `run_in_threadpool` from the async `/analyze` route, so one
+  slow model call doesn't stall the event loop for other requests.
+  Upstream errors are mapped to client-facing status codes
+  (`AkamaiConfigError`→500, `AkamaiApiError`/`TrendDetectionError`→502)
+  without leaking the raw upstream error body to the client.
 - 2026-10-10 — All money and prices use `Decimal`, never `float`.
   Kalshi returns prices as strings; float arithmetic on contract counts
   in the thousands produces penny drift in the sizing math.

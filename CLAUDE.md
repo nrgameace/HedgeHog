@@ -54,10 +54,13 @@ starts fresh: the user answers the questionnaire and uploads financials
 again; nothing is saved between visits.
 
 1. **Homepage** — links straight into the questionnaire. No login screen.
-2. **Questionnaire** — the owner answers questions about their company
-   (what factors they believe impact them — rain, gas prices, GPU
-   prices, etc. — plus expected earnings) and attaches a CSV of their
-   financials.
+2. **Questionnaire** — the owner answers free-text questions about how
+   their company works: what it does, its customers, location, what it
+   relies on day to day, the materials/services it uses most, what
+   outside events have hurt it, which times of year matter, which costs
+   are locked in at a set price, and how much budget they have for risk
+   mitigation (sizes the bets). Nothing the financials CSV already reports
+   (earnings, costs) is asked. They can attach a CSV of their financials.
 3. **Submit** — triggers the backend pipeline:
    a. **Model call 1 — trend detection**: given the uploaded financials
       and stated risk factors, identify which trends are currently
@@ -71,89 +74,66 @@ again; nothing is saved between visits.
    graphs showing hedged vs. unhedged revenue volatility.
 
 ## Current state
-- `backend/` — FastAPI app scaffolded with a `/health` endpoint, pytest
-  wired up, TDD'd (test written and confirmed red before the
-  implementation went green).
-- `frontend/` — Vite + React + TS scaffolded, Vitest + React Testing
-  Library wired up, homepage stub ("Hedgehog" heading + "Start" link)
-  built via TDD.
+- `backend/` — FastAPI app with `/health` and `POST /analyze`, all TDD'd.
+  `/analyze` accepts the frontend's real request shape (`answers` JSON +
+  optional `financials` CSV, see TECHSTACK.md's contract) and runs
+  **Model call 1 (trend detection)** for real: parses the CSV
+  (`app/csv_parsing.py`), builds a prompt from the 9 questionnaire
+  answers (`app/questionnaire.py`, `app/prompts.py`), calls the
+  Akamai-hosted `hackathon-chat` model (`app/akamai_client.py`), and
+  parses its reply into categories (`app/trend_detection.py`). Response
+  is currently `{"hedgeable_categories": [{category, label, reasoning}]}`
+  — **not yet** the full `HedgeReport` the frontend's contract expects.
+  `backend/.env` holds the real Akamai credentials (gitignored);
+  `backend/.env.example` is the template.
 - `backend/app/hedge/` — the pure math core of model call 2, TDD'd:
-  - `sizing.py` — `size_position()` turns an `Exposure` (daily revenue
-    rate, revenue impact %, which side hurts) plus a `MarketQuote` into a
+  - `sizing.py` — `size_position()` turns an `Exposure` (daily amount at
+    risk, impact %, which side hurts) plus a `MarketQuote` into a
     contract count, capped by budget and resting book depth, and reports
     which constraint bound.
   - `metrics.py` — scenario-weighted before/after stats (mean, stdev,
     worst case, 5th percentile) and `compare_hedge()` for the dashboard.
   - Both are pure: no network, no model calls, no Kalshi types. The
     central result they encode is that contract count equals the dollar
-    revenue shortfall and is **independent of contract price** — price
-    sets the hedge's cost, not its size.
-
-## Contract horizons
-Kalshi contracts settle over whatever window their series uses — daily,
-weekly, monthly, quarterly, or one-off event dates. The hedge math is
-only valid when the revenue shortfall is measured over **the same window
-the contract resolves on**, so:
-- `Exposure` carries a **daily revenue rate**, and `size_position()`
-  scales it by each contract's own `ContractWindow`. Pairing a monthly
-  revenue figure with a daily contract would over-hedge ~30x while
-  staying internally consistent at every step, which is why the window is
-  structural rather than a caller convention.
-- A `ContractWindow` is the span of business activity the event covers —
-  **not** Kalshi's `open_time`..`close_time`, which is only when the
-  market accepts orders and can begin weeks before the measured period.
-- **A contract bought mid-window only hedges the remainder.**
-  `KXB200MS-26OCT` covers 1–31 October, but bought on 10 October nine of
-  those days are already spent, and sizing against all 31 over-hedges by
-  ~41%. `size_position()` and `two_state_scenarios()` both clip to
-  `ContractWindow.remaining_days(as_of)`, which defaults to today.
-  This failure mode is invisible in the metrics — an unclipped hedge
-  still reports 100% volatility reduction, because it is a perfect hedge
-  of the wrong period.
-- Every position reports `window`, `as_of`, `days_hedged` and
-  `revenue_at_risk` so the results page can state each leg's horizon
-  rather than implying one uniform period.
-- Portfolio construction (not yet built) has to mix horizons: a monthly
-  risk is often better hedged by a ladder of daily contracts, which pays
-  in proportion to how many bad days actually occur, than by one
-  all-or-nothing monthly contract. The tradeoff is transaction cost —
-  30 daily legs cross the spread 30 times — and the aggregate payoff of
-  many independent daily legs is binomial, so it needs no 2^k scenario
-  enumeration.
+    shortfall and is **independent of contract price** — price sets the
+    hedge's cost, not its size.
 - `backend/app/kalshi/` — market-data client, TDD'd:
   - `models.py` — `Series`, `Market`, `OrderBook` parsed from live
     payload shapes; `event_window()` derives a `ContractWindow` from a
     ticker's date segment plus the series frequency.
   - `client.py` — `KalshiClient` over httpx with an injectable transport
-    (so tests need no network). `list_series()`, `list_markets()` with
-    cursor pagination, `get_orderbook()`, and `quotes_for_series()`
-    which pairs each tradeable market with its own window and quotes it
-    at real book depth.
-  - `search.py` — `rank_series()` narrows the catalogue to the
-    candidates a model can reason over. Normalised IDF over titles,
-    curated factor-to-product expansions, generic business words
-    down-weighted, and scores scaled by how much of the stated factor a
-    title accounts for. Recall-oriented by design: the model supplies
-    precision, and its chosen tickers are validated against the
-    candidates it was shown.
-  - Unauthenticated by design: market data needs no credentials, so no
-    request signing exists rather than sitting unused.
-- `backend/app/model/` — the Qwen-on-Akamai client, TDD'd:
-  - `client.py` — OpenAI-compatible `complete_json()`, tolerant of
-    markdown fences and surrounding prose, raising rather than returning
-    junk. `client_from_env()` returns `None` when `MOCK_MODEL` is unset
-    or true, which is a supported state: callers fall back to curated
-    defaults so the pipeline runs before the endpoint exists.
-  - `vocabulary.py` — `search_vocabulary()` asks the model which words
-    Kalshi would title a series with, then merges the validated proposal
-    over the curated table. This is what stops `search.py`'s expansion
-    table from being a ceiling on which businesses the app can serve.
-- Not yet built: model call 1 (trend detection), model call 2's market
-  *selection* stage (which market, which side, impact %), cross-factor
-  portfolio allocation, fee schedule, the CSV-to-daily-revenue
-  converter, the `revenueSeries` generator, orchestration endpoint,
-  Akamai deployment wiring. Frontend flow exists on a branch but is
-  unmerged and on mocks.
+    (so tests need no network): `list_series()`, `list_markets()` with
+    cursor pagination, `get_orderbook()`, `quotes_for_series()`.
+  - `search.py` — `rank_series()` narrows 14,942 series to the handful a
+    model can reason over. Normalised IDF over titles, generic business
+    words down-weighted, scores scaled by how much of the stated factor
+    a title accounts for. Recall-oriented: the model supplies precision.
+  - Unauthenticated by design: market data needs no credentials.
+- `backend/app/model/` — model-facing helpers on top of
+  `app/akamai_client.py` (the single HTTP client for the Akamai model):
+  - `json_reply.py` — pulls a JSON object out of a reply that may be
+    fenced, prefaced with prose, or both.
+  - `vocabulary.py` — asks the model which words Kalshi would title a
+    series with, then merges the validated proposal over a curated
+    table, so `search.py`'s expansions are not a ceiling on which
+    businesses the app can serve.
+- `frontend/` — full home → questionnaire → results flow built via TDD,
+  running on **mock data** (`MOCK_API` in `frontend/src/api/client.ts`,
+  on by default). Questionnaire asks the 9 free-text questions in step 2,
+  plus an **optional** CSV upload (any shape, max 5 MB). The results page
+  currently always shows simulated results for Two Scoops Creamery
+  (`frontend/src/api/twoScoopsReport.ts`). Screens are React state in
+  `App.tsx` (no router), so a refresh starts over.
+- `demo-data/` — **the north-star simulated data**: two fictional
+  businesses (Two Scoops Creamery, an Austin ice cream shop, 2016–2026;
+  Quillstack AI, an SF AI startup, 2024–2026), each with a detailed
+  monthly `financials.csv` and a `background.md`. Build, test and demo
+  against these instead of inventing data.
+- Not yet built: turning `hedgeable_categories` into the full
+  `HedgeReport` shape (`bets`/`profitSeries`/`simulatedPeriod`) the
+  frontend expects, cross-factor portfolio allocation, the Kalshi fee
+  schedule, and Akamai deployment wiring. The frontend stays on mock
+  data until that lands.
 
 ## Parts of the project
 - Questionnaire + CSV upload UI (frontend)

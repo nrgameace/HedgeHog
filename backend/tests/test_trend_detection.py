@@ -1,0 +1,109 @@
+import pytest
+
+from app.questionnaire import QuestionnaireAnswers
+from app.trend_detection import HedgeableCategory, TrendDetectionError, detect_hedgeable_categories
+
+VALID_REPLY = '{"hedgeable_categories": [{"category": "rain", "label": "Rain", "reasoning": "Owner says rainy days hurt ice cream sales."}]}'
+
+ANSWERS = QuestionnaireAnswers(
+    business_description="Ice cream shop with outdoor seating",
+    customers="Mostly tourists and families in summer",
+    location="Austin, TX",
+    operational_dependencies="Refrigeration, a delivery van, foot traffic",
+    key_materials="Dairy, sugar, electricity, gas for the van",
+    past_impacts="Rainy weekends, heat waves, gas price spikes",
+    time_of_year="June-August is tourist season; winter is slow",
+    locked_in_costs="Milk is on a fixed-price contract through 2027",
+    risk_budget="$500 a month",
+)
+
+
+def test_detect_hedgeable_categories_parses_valid_response(monkeypatch):
+    monkeypatch.setattr("app.trend_detection.chat_complete", lambda *args, **kwargs: VALID_REPLY)
+
+    result = detect_hedgeable_categories(ANSWERS, [])
+
+    assert result == [HedgeableCategory(category="rain", label="Rain", reasoning="Owner says rainy days hurt ice cream sales.")]
+
+
+def test_detect_hedgeable_categories_strips_markdown_fences(monkeypatch):
+    fenced = f"```json\n{VALID_REPLY}\n```"
+    monkeypatch.setattr("app.trend_detection.chat_complete", lambda *args, **kwargs: fenced)
+
+    result = detect_hedgeable_categories(ANSWERS, [])
+
+    assert result == [HedgeableCategory(category="rain", label="Rain", reasoning="Owner says rainy days hurt ice cream sales.")]
+
+
+def test_detect_hedgeable_categories_raises_on_invalid_json(monkeypatch):
+    monkeypatch.setattr("app.trend_detection.chat_complete", lambda *args, **kwargs: "not json at all")
+
+    with pytest.raises(TrendDetectionError):
+        detect_hedgeable_categories(ANSWERS, [])
+
+
+def test_detect_hedgeable_categories_raises_on_missing_top_level_key(monkeypatch):
+    monkeypatch.setattr("app.trend_detection.chat_complete", lambda *args, **kwargs: '{"wrong_key": []}')
+
+    with pytest.raises(TrendDetectionError):
+        detect_hedgeable_categories(ANSWERS, [])
+
+
+def test_detect_hedgeable_categories_raises_on_malformed_item(monkeypatch):
+    monkeypatch.setattr("app.trend_detection.chat_complete", lambda *args, **kwargs: '{"hedgeable_categories": [{"category": "rain"}]}')
+
+    with pytest.raises(TrendDetectionError):
+        detect_hedgeable_categories(ANSWERS, [])
+
+
+def test_detect_hedgeable_categories_raises_on_non_dict_item(monkeypatch):
+    monkeypatch.setattr("app.trend_detection.chat_complete", lambda *args, **kwargs: '{"hedgeable_categories": ["rain"]}')
+
+    with pytest.raises(TrendDetectionError):
+        detect_hedgeable_categories(ANSWERS, [])
+
+
+def test_detect_hedgeable_categories_raises_on_non_list_hedgeable_categories(monkeypatch):
+    monkeypatch.setattr("app.trend_detection.chat_complete", lambda *args, **kwargs: '{"hedgeable_categories": {"category": "rain"}}')
+
+    with pytest.raises(TrendDetectionError):
+        detect_hedgeable_categories(ANSWERS, [])
+
+
+def test_detect_hedgeable_categories_raises_on_non_string_field(monkeypatch):
+    monkeypatch.setattr(
+        "app.trend_detection.chat_complete",
+        lambda *args, **kwargs: '{"hedgeable_categories": [{"category": "rain", "label": "Rain", "reasoning": null}]}',
+    )
+
+    with pytest.raises(TrendDetectionError):
+        detect_hedgeable_categories(ANSWERS, [])
+
+
+def test_detect_hedgeable_categories_strips_fence_without_language_tag(monkeypatch):
+    fenced = f"```\n{VALID_REPLY}\n```"
+    monkeypatch.setattr("app.trend_detection.chat_complete", lambda *args, **kwargs: fenced)
+
+    result = detect_hedgeable_categories(ANSWERS, [])
+
+    assert result == [HedgeableCategory(category="rain", label="Rain", reasoning="Owner says rainy days hurt ice cream sales.")]
+
+
+def test_detect_hedgeable_categories_forwards_temperature_config_and_client(monkeypatch):
+    captured = {}
+
+    def fake_chat_complete(messages, *, temperature=None, config=None, client=None):
+        captured["temperature"] = temperature
+        captured["config"] = config
+        captured["client"] = client
+        return VALID_REPLY
+
+    monkeypatch.setattr("app.trend_detection.chat_complete", fake_chat_complete)
+    sentinel_config = object()
+    sentinel_client = object()
+
+    detect_hedgeable_categories(ANSWERS, [], config=sentinel_config, client=sentinel_client)
+
+    assert captured["temperature"] == 0.2
+    assert captured["config"] is sentinel_config
+    assert captured["client"] is sentinel_client

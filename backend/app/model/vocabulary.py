@@ -12,14 +12,21 @@ call returns search words, never a number, a size or a ticker to trade.
 
 Everything it returns is validated. Concepts the factor never mentioned are
 dropped so the model cannot widen the search on its own, terms are reduced to
-the tokens the index actually matches, and both are capped. On any failure the
-curated table is used, so the pipeline degrades instead of breaking.
+the tokens the index actually matches, and both are capped. On any failure -
+unconfigured credentials included - the curated table is used, so the pipeline
+degrades instead of breaking.
+
+Calls go through `app/akamai_client.chat_complete`, the project's single model
+transport, at temperature 0: this is a lookup, not creative work.
 """
 
 from collections.abc import Mapping, Sequence
 
+import httpx
+
+from app.akamai_client import AkamaiApiError, AkamaiConfig, AkamaiConfigError, chat_complete
 from app.kalshi.search import EXPANSIONS, normalize
-from app.model.client import ModelClient, ModelError
+from app.model.json_reply import ModelReplyError, parse_json_object
 
 MAX_CONCEPTS = 8
 MAX_TERMS_PER_CONCEPT = 8
@@ -41,19 +48,17 @@ Reply with JSON only, in exactly this shape:
 {"concepts": [{"concept": "<word from the factor>", "terms": ["<word>", ...]}]}"""
 
 
-def search_vocabulary(factor: str, client: ModelClient | None, fallback: Mapping[str, Sequence[str]] = EXPANSIONS) -> Mapping[str, tuple[str, ...]]:
+def search_vocabulary(factor: str, *, config: AkamaiConfig | None = None, client: httpx.Client | None = None, fallback: Mapping[str, Sequence[str]] = EXPANSIONS) -> Mapping[str, tuple[str, ...]]:
     """Expansions for a factor: the model's proposal merged over the curated table.
 
     Merging rather than replacing keeps the curated entries as a floor, so a thin
-    or partial proposal cannot cost recall the demo scenarios already have. With
-    no client configured this is just the curated table.
+    or partial proposal cannot cost recall the demo scenarios already have. An
+    unconfigured or unreachable model leaves just the curated table, so retrieval
+    degrades instead of failing the request.
     """
-    if client is None:
-        return {term: tuple(terms) for term, terms in fallback.items()}
-
     try:
-        proposed = _propose(factor, client)
-    except ModelError:
+        proposed = _propose(factor, config=config, client=client)
+    except (AkamaiConfigError, AkamaiApiError, ModelReplyError):
         proposed = {}
 
     merged = {term: tuple(terms) for term, terms in fallback.items()}
@@ -62,9 +67,13 @@ def search_vocabulary(factor: str, client: ModelClient | None, fallback: Mapping
     return merged
 
 
-def _propose(factor: str, client: ModelClient) -> Mapping[str, tuple[str, ...]]:
-    reply = client.complete_json(SYSTEM_PROMPT, f"Risk factor: {factor}")
-    return _validated(reply, stated=frozenset(normalize(factor)))
+def _propose(factor: str, *, config: AkamaiConfig | None, client: httpx.Client | None) -> Mapping[str, tuple[str, ...]]:
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": f"Risk factor: {factor}"},
+    ]
+    reply = chat_complete(messages, temperature=0.0, config=config, client=client)
+    return _validated(parse_json_object(reply), stated=frozenset(normalize(factor)))
 
 
 def _validated(reply: Mapping, stated: frozenset[str]) -> Mapping[str, tuple[str, ...]]:
