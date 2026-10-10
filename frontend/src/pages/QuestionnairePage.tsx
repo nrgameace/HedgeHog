@@ -28,6 +28,7 @@ const EMPTY_ANSWERS = Object.fromEntries(QUESTIONS.map((question) => [question.i
 type QuestionnairePageProps = {
   submit: (answers: QuestionnaireAnswers, file: File | null) => Promise<HedgeReport>
   onComplete: (report: HedgeReport) => void
+  requireFinancials: boolean
 }
 
 type TextQuestionProps = { question: Question; value: string; onChange: (value: string) => void }
@@ -42,7 +43,7 @@ function TextQuestion({ question, value, onChange }: TextQuestionProps) {
   )
 }
 
-function QuestionnairePage({ submit, onComplete }: QuestionnairePageProps) {
+function QuestionnairePage({ submit, onComplete, requireFinancials }: QuestionnairePageProps) {
   const [answers, setAnswers] = useState<QuestionnaireAnswers>(EMPTY_ANSWERS)
   const [file, setFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
@@ -52,8 +53,8 @@ function QuestionnairePage({ submit, onComplete }: QuestionnairePageProps) {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     const trimmed = Object.fromEntries(Object.entries(answers).map(([id, value]) => [id, value.trim()])) as QuestionnaireAnswers
-    // No question is required while the app runs on simulated data; only an uploaded file is checked.
-    const uploadError = validateFinancialsFile(file)
+    // No question is required; the backend needs the financials CSV to simulate trades.
+    const uploadError = validateFinancialsFile(file, requireFinancials)
     setFileError(uploadError)
     setSubmitError(null)
     if (uploadError) return

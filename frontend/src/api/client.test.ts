@@ -39,6 +39,13 @@ describe('submitQuestionnaire', () => {
     await expect(submitQuestionnaire(answers, file, { useMock: false, apiUrl: 'http://api.test' })).rejects.toThrow(/500/)
   })
 
+  it('in real mode, throws the backend\'s explanation when it gives one', async () => {
+    const body = JSON.stringify({ detail: 'The financials CSV needs a profit column.' })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, { status: 400 })))
+
+    await expect(submitQuestionnaire(answers, file, { useMock: false, apiUrl: 'http://api.test' })).rejects.toThrow('The financials CSV needs a profit column.')
+  })
+
   it('in real mode, sends only the answers when no file was uploaded', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
