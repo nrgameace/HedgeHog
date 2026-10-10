@@ -42,3 +42,9 @@ def test_raises_on_field_larger_than_csv_module_limit():
 
     with pytest.raises(InvalidCsvError):
         parse_csv_rows(content)
+
+
+def test_parse_csv_rows_strips_excel_byte_order_mark():
+    rows = parse_csv_rows("﻿month,operating_income\n2024-01,5\n".encode("utf-8"))
+
+    assert rows == [{"month": "2024-01", "operating_income": "5"}]

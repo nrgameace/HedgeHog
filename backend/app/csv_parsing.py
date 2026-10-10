@@ -8,7 +8,7 @@ class InvalidCsvError(Exception):
 
 def parse_csv_rows(content: bytes) -> list[dict[str, str]]:
     try:
-        text = content.decode("utf-8")
+        text = content.decode("utf-8-sig")
     except UnicodeDecodeError as exc:
         raise InvalidCsvError("financials file is not valid UTF-8 text") from exc
 

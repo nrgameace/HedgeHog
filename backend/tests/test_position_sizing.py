@@ -116,3 +116,15 @@ def test_raises_on_invalid_json(monkeypatch):
 def test_raises_on_missing_bets_key(monkeypatch):
     with pytest.raises(PositionSizingError):
         _plan_with_reply(monkeypatch, '{"trades": []}')
+
+
+@pytest.mark.parametrize(("field", "value"), [("ticker", {"a": 1}), ("category", ["rain"]), ("side", ["YES"])])
+def test_drops_bet_with_non_text_identifier(monkeypatch, field, value):
+    assert _plan_with_bets(monkeypatch, {**RAIN_BET, field: value}) == []
+
+
+@pytest.mark.parametrize("amount", ["NaN", "Infinity"])
+def test_drops_non_finite_amount(monkeypatch, amount):
+    reply = json.dumps({"bets": [RAIN_BET]}).replace('"amountUsd": 300', f'"amountUsd": {amount}')
+
+    assert _plan_with_reply(monkeypatch, reply) == []

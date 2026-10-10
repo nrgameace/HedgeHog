@@ -1,8 +1,11 @@
+from concurrent.futures import ThreadPoolExecutor, wait
+
 import httpx
 
 from app.kalshi_client import KalshiApiError, KalshiMarket, fetch_open_markets
 
 KALSHI_REQUEST_TIMEOUT_SECONDS = 5.0
+KALSHI_DEADLINE_SECONDS = 6.0
 
 SERIES_TICKERS = (
     "KXRAINAUSM", "KXRAINNYCM", "KXRAINCHIM", "KXRAINLAXM", "KXRAINMIAM", "KXRAINSFOM", "KXRAINSEAM",
@@ -36,21 +39,26 @@ FALLBACK_MARKETS = [
 ]
 
 
-def _fetch_all_series(client: httpx.Client) -> list[KalshiMarket]:
-    markets: list[KalshiMarket] = []
-    for series_ticker in SERIES_TICKERS:
-        try:
-            markets.extend(fetch_open_markets(series_ticker, client))
-        except KalshiApiError:
-            continue
-    return markets
+def _fetch_or_empty(series_ticker: str, client: httpx.Client) -> list[KalshiMarket]:
+    try:
+        return fetch_open_markets(series_ticker, client)
+    except KalshiApiError:
+        return []
 
 
-def load_candidate_markets(client: httpx.Client | None = None) -> list[KalshiMarket]:
+def _fetch_all_series(client: httpx.Client, deadline_seconds: float) -> list[KalshiMarket]:
+    executor = ThreadPoolExecutor(max_workers=len(SERIES_TICKERS))
+    futures = [executor.submit(_fetch_or_empty, series_ticker, client) for series_ticker in SERIES_TICKERS]
+    finished, _ = wait(futures, timeout=deadline_seconds)
+    executor.shutdown(wait=False, cancel_futures=True)
+    return [market for future in futures if future in finished for market in future.result()]
+
+
+def load_candidate_markets(client: httpx.Client | None = None, deadline_seconds: float = KALSHI_DEADLINE_SECONDS) -> list[KalshiMarket]:
     owns_client = client is None
     client = client or httpx.Client(timeout=KALSHI_REQUEST_TIMEOUT_SECONDS)
     try:
-        return _fetch_all_series(client) or FALLBACK_MARKETS
+        return _fetch_all_series(client, deadline_seconds) or FALLBACK_MARKETS
     finally:
         if owns_client:
             client.close()

@@ -7,7 +7,8 @@ MONTH_COLUMNS = ("month", "date", "period")
 PROFIT_COLUMNS = ("operating_income", "net_income", "profit", "gross_profit")
 RECENT_YEARS_CONSIDERED = 3
 
-_MONTH_PATTERN = re.compile(r"^\s*(\d{4})-(\d{1,2})(?:-\d{1,2})?\s*$")
+_YEAR_FIRST_PATTERN = re.compile(r"^\s*(\d{4})[-/](\d{1,2})(?:[-/]\d{1,2})?\s*$")
+_US_DATE_PATTERN = re.compile(r"^\s*(\d{1,2})/\d{1,2}/(\d{4})\s*$")
 
 
 @dataclass
@@ -33,17 +34,24 @@ def _find_column(fieldnames: list[str], candidates: tuple[str, ...]) -> str | No
 
 
 def _parse_month(text: str) -> tuple[int, int] | None:
-    match = _MONTH_PATTERN.match(text or "")
-    if not match or not 1 <= int(match.group(2)) <= 12:
+    if match := _YEAR_FIRST_PATTERN.match(text or ""):
+        year, month = int(match.group(1)), int(match.group(2))
+    elif match := _US_DATE_PATTERN.match(text or ""):
+        year, month = int(match.group(2)), int(match.group(1))
+    else:
         return None
-    return int(match.group(1)), int(match.group(2)) - 1
+    return (year, month - 1) if 1 <= month <= 12 else None
 
 
 def _parse_amount(text: str) -> float | None:
+    cleaned = re.sub(r"[$,\s]", "", text or "")
+    if cleaned.startswith("(") and cleaned.endswith(")"):
+        cleaned = f"-{cleaned[1:-1]}"
     try:
-        return float(re.sub(r"[$,\s]", "", text or ""))
+        value = float(cleaned)
     except ValueError:
         return None
+    return value if math.isfinite(value) else None
 
 
 def _required_columns(rows: list[dict[str, str]]) -> tuple[str, str]:
@@ -61,9 +69,12 @@ def _required_columns(rows: list[dict[str, str]]) -> tuple[str, str]:
 
 def _profit_by_year(rows: list[dict[str, str]]) -> dict[int, dict[int, float]]:
     month_column, profit_column = _required_columns(rows)
+    months = [_parse_month(row[month_column]) for row in rows]
+    if all(month is None for month in months):
+        raise FinancialHistoryError(f"Couldn't read the dates in column '{month_column}'; use YYYY-MM (for example 2024-05).")
     by_year: dict[int, dict[int, float]] = {}
-    for row in rows:
-        month, profit = _parse_month(row[month_column]), _parse_amount(row[profit_column])
+    for month, row in zip(months, rows):
+        profit = _parse_amount(row[profit_column])
         if month is not None and profit is not None:
             by_year.setdefault(month[0], {})[month[1]] = profit
     return by_year
