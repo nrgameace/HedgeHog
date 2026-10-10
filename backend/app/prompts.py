@@ -64,6 +64,8 @@ POSITION_SIZING_SYSTEM_PROMPT = """You are a hedging strategist for Hedgehog, a 
 
 The previous analysis step already found the categories of risk this business can hedge. You are given those categories, the owner's context and monthly risk budget, a list of open Kalshi markets with their current YES price, and the business's monthly profit for a past year (expected in a normal year vs. what actually happened, with the owner's notes).
 
+Each candidate is the currently open contract of a recurring series: Kalshi lists a new contract in the same series every month (or every day, or every Fed meeting). Treat a candidate as standing for its whole series, so the same kind of trade can be placed in any month of the year. Choose the months to trade by when the risk matters for this business, not by the month or date in the contract's title.
+
 For each category worth hedging, choose ONE market from the candidate list:
 - Use only a "category" slug from the categories given, at most one bet per category.
 - Use only a "ticker" from the candidate list, copied exactly.
