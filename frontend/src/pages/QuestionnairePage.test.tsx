@@ -16,7 +16,8 @@ const QUESTIONS = [
   'What materials or services do you use the most?',
   'What outside events have hurt your business before, or worry you most?',
   'What times of year matter most to your business, and why?',
-  'Are any of your costs locked in?',
+  'Are any of your costs locked in at a set price, like a fixed-price supplier contract, a fixed-rate loan or a long-term lease?',
+  'How much budget would you have for risk mitigation?',
 ]
 
 function renderPage(submit = vi.fn().mockResolvedValue(report), onComplete = vi.fn()) {
@@ -37,7 +38,7 @@ function answerRequired() {
 const requiredAnswers = { ...blankAnswers, businessDescription: 'Ice cream shop', location: 'Austin, TX', pastImpacts: 'Rainy weekends' }
 
 describe('QuestionnairePage', () => {
-  it('asks all eight questions and nothing the CSV already covers', () => {
+  it('asks all nine questions and nothing the CSV already covers', () => {
     renderPage()
 
     for (const question of QUESTIONS) {
@@ -71,10 +72,11 @@ describe('QuestionnairePage', () => {
     answerRequired()
     answer(/who are your customers/i, '  Tourists  ')
     answer(/are any of your costs locked in/i, 'Fixed-rate loan')
+    answer(/budget would you have for risk mitigation/i, ' $500 a month ')
 
     fireEvent.click(screen.getByRole('button', { name: /analyze/i }))
 
-    expect(submit).toHaveBeenCalledWith({ ...requiredAnswers, customers: 'Tourists', lockedInCosts: 'Fixed-rate loan' }, null)
+    expect(submit).toHaveBeenCalledWith({ ...requiredAnswers, customers: 'Tourists', lockedInCosts: 'Fixed-rate loan', riskBudget: '$500 a month' }, null)
     await waitFor(() => expect(onComplete).toHaveBeenCalledWith(report))
   })
 

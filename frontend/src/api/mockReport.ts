@@ -108,6 +108,16 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const UNHEDGED_SWINGS = [0.12, -0.18, 0.05, -0.22, 0.15, -0.08, 0.2, -0.15, 0.03, -0.2, 0.1, -0.05]
 const HEDGE_BUDGET_SHARE = 0.05
 
+// Reads the first dollar amount in the owner's budget answer ("$800 a month", "2k", "$12,000 a year") as a monthly figure.
+function parseMonthlyBudget(text: string): number | null {
+  const match = text.replace(/,/g, '').match(/(\d+(?:\.\d+)?)\s*(k|m)?\b/i)
+  if (!match) return null
+  const multiplier = { k: 1_000, m: 1_000_000 }[match[2]?.toLowerCase() as 'k' | 'm'] ?? 1
+  const amount = Number(match[1]) * multiplier
+  const monthly = /\b(year|yearly|yr|annual\w*)\b/i.test(text) ? amount / 12 : amount
+  return monthly > 0 ? monthly : null
+}
+
 function buildRevenueSeries(monthlyRevenue: number, hedged: boolean): RevenuePoint[] {
   const damping = hedged ? 0.3 : 1
   return MONTHS.map((period, index) => ({
@@ -118,11 +128,12 @@ function buildRevenueSeries(monthlyRevenue: number, hedged: boolean): RevenuePoi
 }
 
 export function buildMockReport(answers: QuestionnaireAnswers, monthlyRevenue: number): HedgeReport {
-  const { lockedInCosts, location, ...otherAnswers } = answers
+  const { lockedInCosts, location, riskBudget, ...otherAnswers } = answers
   const text = Object.values(otherAnswers).join(' ')
   const rules = HEDGE_RULES.filter((rule) => rule.keywords.test(text) && !rule.keywords.test(lockedInCosts))
   const place = location.trim() || 'your area'
-  const amountUsd = rules.length ? Math.floor((monthlyRevenue * HEDGE_BUDGET_SHARE) / rules.length) : 0
+  const budget = parseMonthlyBudget(riskBudget) ?? monthlyRevenue * HEDGE_BUDGET_SHARE
+  const amountUsd = rules.length ? Math.floor(budget / rules.length) : 0
   const wording = (rule: HedgeRule): HedgeWording => (rule.reversed?.keywords.test(text) ? rule.reversed : rule)
   return {
     concerns: rules.map((rule) => ({ factor: rule.factor, explanation: wording(rule).explanation })),

@@ -38,6 +38,27 @@ describe('buildMockReport on the north-star demo businesses', () => {
   })
 })
 
+const totalBets = (answers: Parameters<typeof buildMockReport>[0]) =>
+  buildMockReport(answers, 30000).bets.reduce((sum, bet) => sum + bet.amountUsd, 0)
+
+describe('buildMockReport risk budget', () => {
+  it('spends the monthly budget the owner gives instead of 5% of revenue', () => {
+    expect(totalBets({ ...iceCreamShop, riskBudget: 'About $800 a month.' })).toBeLessThanOrEqual(800)
+    expect(totalBets({ ...iceCreamShop, riskBudget: 'About $800 a month.' })).toBeGreaterThan(790)
+  })
+
+  it('understands thousands and yearly budgets', () => {
+    expect(totalBets({ ...iceCreamShop, riskBudget: '$6,000' })).toBeGreaterThan(5990)
+    expect(totalBets({ ...iceCreamShop, riskBudget: '2k per month' })).toBeGreaterThan(1990)
+    expect(totalBets({ ...iceCreamShop, riskBudget: '$12,000 a year' })).toBeLessThanOrEqual(1000)
+    expect(totalBets({ ...iceCreamShop, riskBudget: '$12,000 a year' })).toBeGreaterThan(990)
+  })
+
+  it('falls back to 5% of revenue when no amount is given', () => {
+    expect(totalBets({ ...iceCreamShop, riskBudget: 'not sure yet' })).toBeGreaterThan(1490)
+  })
+})
+
 describe('buildMockReport', () => {
   it('turns rain worries into a weather bet for the business location', () => {
     const report = buildMockReport({ ...blankAnswers, location: 'Austin, TX', pastImpacts: 'Rainy weekends' }, 30000)
