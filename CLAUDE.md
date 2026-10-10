@@ -33,10 +33,12 @@ starts fresh: the user answers the questionnaire and uploads financials
 again; nothing is saved between visits.
 
 1. **Homepage** — links straight into the questionnaire. No login screen.
-2. **Questionnaire** — the owner answers questions about their company
-   (what factors they believe impact them — rain, gas prices, GPU
-   prices, etc. — plus expected earnings) and attaches a CSV of their
-   financials.
+2. **Questionnaire** — the owner answers free-text questions about how
+   their company works: what it does, its customers, location, what it
+   relies on day to day, the materials/services it uses most, what
+   outside events have hurt it, which times of year matter, and which
+   costs are locked in. Nothing the financials CSV already reports
+   (earnings, costs) is asked. They can attach a CSV of their financials.
 3. **Submit** — triggers the backend pipeline:
    a. **Model call 1 — trend detection**: given the uploaded financials
       and stated risk factors, identify which trends are currently
@@ -55,16 +57,23 @@ again; nothing is saved between visits.
   implementation went green).
 - `frontend/` — full home → questionnaire → results flow built via TDD,
   running on **mock data** (`MOCK_API` in `frontend/src/api/client.ts`,
-  on by default). Questionnaire asks only what the flow above specifies:
-  "What factors do you believe impact your business?" (owner types
-  their own; no suggested factors) and expected monthly earnings, plus
-  an **optional** CSV upload (any shape, max 5 MB) — optional while the
-  app runs on simulated data. A realistic sample lives at
-  `frontend/public/sample-financials.csv` (24 months, seasonal shop:
-  revenue, COGS, payroll, rent, net income, cash, etc.). Results
+  on by default). Questionnaire asks the 8 free-text questions in step 2
+  (none required while the app runs on simulated data), defined as one list in `frontend/src/pages/QuestionnairePage.tsx`,
+  plus an **optional** CSV upload (any shape, max 5 MB) — optional while
+  the app runs on simulated data. The mock report spots hedgeable
+  dependencies with keyword rules (`frontend/src/api/mockReport.ts`),
+  skips anything listed as locked in, and sizes bets at 5% of the CSV's
+  average monthly revenue (or a demo figure without a CSV). Results
   show concerns, recommended bets (labelled simulated) and a Recharts
   hedged-vs-unhedged revenue chart. Screens are React state in
   `App.tsx` (no router), so a refresh starts over.
+- `demo-data/` — **the north-star simulated data**: two fictional
+  businesses (Two Scoops Creamery, an Austin ice cream shop, 2016–2026;
+  Quillstack AI, an SF AI startup, 2024–2026), each with a detailed
+  monthly `financials.csv` and a `background.md` (story, ready-to-paste
+  questionnaire answers, and a "what Hedgehog should find" checklist).
+  Build, test and demo against these instead of inventing data. Frontend
+  tests mirror the demo answers in `frontend/src/test/answers.ts`.
 - Not yet built: the backend `POST /analyze` endpoint the frontend calls
   when mock mode is off (contract in TECHSTACK.md), CSV parsing, the two
   model calls, Kalshi client, Akamai deployment wiring.

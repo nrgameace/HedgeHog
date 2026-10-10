@@ -5,7 +5,7 @@ import App from './App'
 import { buildMockReport } from './api/mockReport'
 
 vi.mock('./api/client', () => ({
-  submitQuestionnaire: vi.fn((answers) => Promise.resolve(buildMockReport(answers))),
+  submitQuestionnaire: vi.fn((answers) => Promise.resolve(buildMockReport(answers, 30000))),
 }))
 
 describe('App', () => {
@@ -20,13 +20,13 @@ describe('App', () => {
     render(<App />)
 
     fireEvent.click(screen.getByRole('button', { name: /start/i }))
-    fireEvent.change(screen.getByLabelText(/what factors do you believe impact your business/i), { target: { value: 'Rain' } })
-    fireEvent.click(screen.getByRole('button', { name: /^add$/i }))
-    fireEvent.change(screen.getByLabelText(/expected monthly earnings/i), { target: { value: '20000' } })
+    fireEvent.change(screen.getByLabelText(/what does your business do/i), { target: { value: 'Ice cream shop' } })
+    fireEvent.change(screen.getByLabelText(/where is your business located/i), { target: { value: 'Austin, TX' } })
+    fireEvent.change(screen.getByLabelText(/what outside events/i), { target: { value: 'Rainy weekends' } })
     fireEvent.click(screen.getByRole('button', { name: /analyze/i }))
 
     expect(await screen.findByRole('heading', { name: /your hedging plan/i })).toBeInTheDocument()
-    expect(screen.getByText(/rainy days cut foot traffic/i)).toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: /rain.*austin, tx/i })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /start over/i }))
     expect(screen.getByRole('button', { name: /start/i })).toBeInTheDocument()

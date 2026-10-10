@@ -1,21 +1,30 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { iceCreamShop } from '../test/answers'
 import { submitQuestionnaire } from './client'
 
-const answers = { factors: ['Rain', 'Coffee prices'], expectedEarnings: 20000 }
-const file = new File(['date,revenue\n2026-01,1000'], 'financials.csv', { type: 'text/csv' })
+const answers = iceCreamShop
+const file = new File(['month,revenue\n2026-01,40000\n2026-02,40000'], 'financials.csv', { type: 'text/csv' })
+const totalBets = (report: Awaited<ReturnType<typeof submitQuestionnaire>>) => report.bets.reduce((sum, bet) => sum + bet.amountUsd, 0)
 
 describe('submitQuestionnaire', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
   })
 
-  it('in mock mode, returns a report with one concern and one bet per factor', async () => {
-    const report = await submitQuestionnaire(answers, file, { useMock: true, mockDelayMs: 0 })
+  it('in mock mode, returns a report built from the answers', async () => {
+    const report = await submitQuestionnaire(answers, null, { useMock: true, mockDelayMs: 0 })
 
-    expect(report.concerns.map((concern) => concern.factor)).toEqual(['Rain', 'Coffee prices'])
-    expect(report.bets).toHaveLength(2)
+    expect(report.bets.length).toBeGreaterThan(0)
     expect(report.revenueSeries.length).toBeGreaterThan(0)
+  })
+
+  it('in mock mode, sizes bets from the uploaded CSV revenue when there is one', async () => {
+    const withoutCsv = await submitQuestionnaire(answers, null, { useMock: true, mockDelayMs: 0 })
+    const withCsv = await submitQuestionnaire(answers, file, { useMock: true, mockDelayMs: 0 })
+
+    expect(totalBets(withCsv)).toBeLessThanOrEqual(2000)
+    expect(totalBets(withCsv)).toBeGreaterThan(totalBets(withoutCsv))
   })
 
   it('in real mode, posts the answers and the file to /analyze', async () => {

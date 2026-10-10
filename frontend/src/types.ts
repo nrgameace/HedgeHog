@@ -1,6 +1,14 @@
+// Free-text answers: the backend's model reads them to find hedgeable dependencies.
+// Nothing the financials CSV already reports (earnings, costs) is asked here.
 export type QuestionnaireAnswers = {
-  factors: string[]
-  expectedEarnings: number
+  businessDescription: string
+  customers: string
+  location: string
+  operationalDependencies: string
+  keyMaterials: string
+  pastImpacts: string
+  timeOfYear: string
+  lockedInCosts: string
 }
 
 export type Concern = {

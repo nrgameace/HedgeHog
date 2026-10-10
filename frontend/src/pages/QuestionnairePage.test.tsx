@@ -1,95 +1,96 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { blankAnswers } from '../test/answers'
 import type { HedgeReport } from '../types'
 import QuestionnairePage from './QuestionnairePage'
 
 const report: HedgeReport = { concerns: [], bets: [], revenueSeries: [] }
-const csvFile = new File(['date,revenue\n2026-01,1000'], 'financials.csv', { type: 'text/csv' })
+const csvFile = new File(['month,revenue\n2026-01,1000'], 'financials.csv', { type: 'text/csv' })
+
+const QUESTIONS = [
+  'What does your business do?',
+  'Who are your customers?',
+  'Where is your business located?',
+  'What does your business rely on to operate day to day?',
+  'What materials or services do you use the most?',
+  'What outside events have hurt your business before, or worry you most?',
+  'What times of year matter most to your business, and why?',
+  'Are any of your costs locked in?',
+]
 
 function renderPage(submit = vi.fn().mockResolvedValue(report), onComplete = vi.fn()) {
   render(<QuestionnairePage submit={submit} onComplete={onComplete} />)
   return { submit, onComplete }
 }
 
-function addFactor(factor: string) {
-  fireEvent.change(screen.getByLabelText(/what factors do you believe impact your business/i), { target: { value: factor } })
-  fireEvent.click(screen.getByRole('button', { name: /^add$/i }))
+function answer(question: RegExp, value: string) {
+  fireEvent.change(screen.getByLabelText(question), { target: { value } })
 }
 
-function enterEarnings(value: string) {
-  fireEvent.change(screen.getByLabelText(/expected monthly earnings/i), { target: { value } })
+function answerRequired() {
+  answer(/what does your business do/i, 'Ice cream shop')
+  answer(/where is your business located/i, 'Austin, TX')
+  answer(/what outside events/i, 'Rainy weekends')
 }
+
+const requiredAnswers = { ...blankAnswers, businessDescription: 'Ice cream shop', location: 'Austin, TX', pastImpacts: 'Rainy weekends' }
 
 describe('QuestionnairePage', () => {
-  it('asks what factors impact the business without suggesting any', () => {
+  it('asks all eight questions and nothing the CSV already covers', () => {
     renderPage()
 
-    expect(screen.getByLabelText('What factors do you believe impact your business?')).toBeInTheDocument()
-    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
-    expect(screen.queryByRole('listitem')).not.toBeInTheDocument()
+    for (const question of QUESTIONS) {
+      expect(screen.getByLabelText(new RegExp(question.replace(/[?,]/g, '.')))).toBeInTheDocument()
+    }
+    expect(screen.queryByLabelText(/earnings/i)).not.toBeInTheDocument()
   })
 
-  it('lists each factor the owner adds, and lets them remove one', () => {
+  it('has no sample-CSV download link (demo CSVs live in demo-data/)', () => {
     renderPage()
 
-    addFactor('Rain')
-    addFactor('Coffee prices')
-    expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
-      expect.stringContaining('Rain'),
-      expect.stringContaining('Coffee prices'),
-    ])
-
-    fireEvent.click(screen.getByRole('button', { name: 'Remove Rain' }))
-    expect(screen.queryByText('Rain')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
-  it('ignores blank and duplicate factors', () => {
+  it('does not label anything as optional', () => {
     renderPage()
 
-    addFactor('   ')
-    addFactor('Rain')
-    addFactor('Rain')
-
-    expect(screen.getAllByRole('listitem')).toHaveLength(1)
+    expect(screen.queryByText(/optional/i)).not.toBeInTheDocument()
   })
 
-  it('shows errors and does not submit without a factor or earnings', () => {
+  it('lets the owner submit without answering anything while we use simulated data', () => {
     const { submit } = renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: /analyze/i }))
 
-    expect(screen.getByText(/add at least one factor/i)).toBeInTheDocument()
-    expect(screen.getByText(/enter your expected earnings/i)).toBeInTheDocument()
-    expect(submit).not.toHaveBeenCalled()
+    expect(submit).toHaveBeenCalledWith(blankAnswers, null)
   })
 
-  it('submits without a CSV, since the upload is optional', async () => {
+  it('submits all the answers, trimmed, without needing a CSV', async () => {
     const { submit, onComplete } = renderPage()
-    addFactor('Rain')
-    enterEarnings('20000')
+    answerRequired()
+    answer(/who are your customers/i, '  Tourists  ')
+    answer(/are any of your costs locked in/i, 'Fixed-rate loan')
 
     fireEvent.click(screen.getByRole('button', { name: /analyze/i }))
 
-    expect(submit).toHaveBeenCalledWith({ factors: ['Rain'], expectedEarnings: 20000 }, null)
+    expect(submit).toHaveBeenCalledWith({ ...requiredAnswers, customers: 'Tourists', lockedInCosts: 'Fixed-rate loan' }, null)
     await waitFor(() => expect(onComplete).toHaveBeenCalledWith(report))
   })
 
   it('passes along a CSV when one is uploaded', () => {
     const { submit } = renderPage()
-    addFactor('Rain')
-    enterEarnings('20000')
+    answerRequired()
     fireEvent.change(screen.getByLabelText(/upload your financials/i), { target: { files: [csvFile] } })
 
     fireEvent.click(screen.getByRole('button', { name: /analyze/i }))
 
-    expect(submit).toHaveBeenCalledWith({ factors: ['Rain'], expectedEarnings: 20000 }, csvFile)
+    expect(submit).toHaveBeenCalledWith(requiredAnswers, csvFile)
   })
 
   it('still rejects an uploaded file that is not a CSV', () => {
     const { submit } = renderPage()
-    addFactor('Rain')
-    enterEarnings('20000')
+    answerRequired()
     const textFile = new File(['hello'], 'notes.txt', { type: 'text/plain' })
     fireEvent.change(screen.getByLabelText(/upload your financials/i), { target: { files: [textFile] } })
 
@@ -101,8 +102,7 @@ describe('QuestionnairePage', () => {
 
   it('shows the error when the analysis fails', async () => {
     renderPage(vi.fn().mockRejectedValue(new Error('The analysis failed (status 500).')))
-    addFactor('Rain')
-    enterEarnings('20000')
+    answerRequired()
 
     fireEvent.click(screen.getByRole('button', { name: /analyze/i }))
 
