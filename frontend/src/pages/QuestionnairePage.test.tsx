@@ -5,7 +5,7 @@ import { blankAnswers } from '../test/answers'
 import type { HedgeReport } from '../types'
 import QuestionnairePage from './QuestionnairePage'
 
-const report: HedgeReport = { concerns: [], bets: [], revenueSeries: [] }
+const report: HedgeReport = { bets: [], profitSeries: [], simulatedPeriod: '' }
 const csvFile = new File(['month,revenue\n2026-01,1000'], 'financials.csv', { type: 'text/csv' })
 
 const QUESTIONS = [
