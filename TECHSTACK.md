@@ -103,14 +103,18 @@ sees the same ground truth. Project context/flow lives in
 ## Candidate series for the demo scenarios
 Verified present in the live `GET /series` response, 2026-10-10.
 
-**AI startup — GPU/compute pricing.** There is a whole B200 family:
-- `KXB200W` / `KXB200WS` — B200 Weekly Price
-- `KXB200MON` / `KXB200MS` — B200 Monthly Price
-- `KXB200Q` — B200 Quarterly Directional Price
-- `KXB200MAX` — B100 Yearly Directional Price
-- `KXFLOP` — Flop compute (custom)
-- `KXPPISEMI` / `PPISEMI` — Semiconductor PPI (monthly), as a fallback
-- `KXGPURULE` — GPU export restrictions (custom)
+**AI startup — GPU/compute pricing.** A B200 family exists, but **most of
+it is dead**. Checked market-by-market:
+- `KXB200MS` (monthly) — **190 active markets.** The one to build on.
+  Strikes are B200 compute price per hour, e.g.
+  `KXB200MS-26OCT-11.000` = "above $11.00 in October".
+- `KXB200MAX` (annual) — 23 active markets.
+- `KXB200W`, `KXB200WS`, `KXB200MON` — **100% finalized**, no live
+  markets. The weekly horizon is not actually available.
+- `KXB200Q` (quarterly), `KXFLOP` — **zero markets at all.**
+- `KXPPISEMI` / `PPISEMI` — Semiconductor PPI (monthly), as a fallback.
+- `KXGPURULE` — GPU export restrictions, but `custom` frequency, so no
+  derivable window.
 
 **Ice cream shop — daily weather.** 122 daily weather series exist, but
 they are overwhelmingly *temperature*, not rain. Daily rain is nearly

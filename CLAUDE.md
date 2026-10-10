@@ -28,9 +28,11 @@ ends of the contract-horizon range:
    suppresses ice cream demand more reliably than a rainy one. The shop
    is hurt when it is *cold*, so the hedge buys the side that pays on a
    cold outcome.
-2. **AI startup** — longer-horizon GPU/compute pricing contracts
-   (weekly through quarterly), against Kalshi's B200 compute-price
-   family. Hurt when compute prices *rise*.
+2. **AI startup** — longer-horizon GPU/compute pricing contracts against
+   Kalshi's B200 compute-price family. Hurt when compute prices *rise*.
+   Live markets are **monthly** (`KXB200MS`, 190 active) and annual
+   (`KXB200MAX`); the weekly and quarterly B200 series have no active
+   markets at all, so monthly is the demo horizon.
 
 Both are confirmed to have real Kalshi series behind them (verified
 2026-10-10, see TECHSTACK.md for tickers). This is the main reason
@@ -110,10 +112,22 @@ the contract resolves on**, so:
   30 daily legs cross the spread 30 times — and the aggregate payoff of
   many independent daily legs is binomial, so it needs no 2^k scenario
   enumeration.
-- Not yet built: questionnaire + CSV upload UI, CSV parsing, model call 1
-  (trend detection), model call 2's retrieval + LLM selection stages,
-  Kalshi client, cross-factor portfolio allocation, fee schedule,
-  results dashboard, Akamai deployment wiring.
+- `backend/app/kalshi/` — market-data client, TDD'd:
+  - `models.py` — `Series`, `Market`, `OrderBook` parsed from live
+    payload shapes; `event_window()` derives a `ContractWindow` from a
+    ticker's date segment plus the series frequency.
+  - `client.py` — `KalshiClient` over httpx with an injectable transport
+    (so tests need no network). `list_series()`, `list_markets()` with
+    cursor pagination, `get_orderbook()`, and `quotes_for_series()`
+    which pairs each tradeable market with its own window and quotes it
+    at real book depth.
+  - Unauthenticated by design: market data needs no credentials, so no
+    request signing exists rather than sitting unused.
+- Not yet built: model call 1 (trend detection), model call 2's
+  relevance scoring + LLM selection stages, cross-factor portfolio
+  allocation, fee schedule, the CSV-to-daily-revenue converter, the
+  `revenueSeries` generator, orchestration endpoint, Akamai deployment
+  wiring. Frontend flow exists on a branch but is unmerged and on mocks.
 
 ## Parts of the project
 - Questionnaire + CSV upload UI (frontend)
