@@ -1,19 +1,7 @@
-/* Landing page only: every selector is scoped under .landing so the
-   questionnaire and results pages keep their own look. */
+/* Landing page only: every selector is scoped under .landing. The --hh-*
+   palette comes from index.css, shared with the other pages. */
 
 .landing {
-  --hh-cream: #f8f2e7;
-  --hh-paper: #efe4d2;
-  --hh-sand: #e2d0b4;
-  --hh-tan: #c9a27a;
-  --hh-mustard: #c99a45;
-  --hh-pumpkin: #c2773f;
-  --hh-cocoa: #8a5a3b;
-  --hh-bark: #533526;
-  --hh-ink: #3d2a1f;
-  --hh-muted: #6e5646;
-  --hh-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
-
   position: relative;
   isolation: isolate;
   color-scheme: light;

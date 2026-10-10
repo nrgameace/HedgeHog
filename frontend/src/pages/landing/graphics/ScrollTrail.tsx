@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-import hedgehogLogo from '../assets/hedgehog-logo.png'
+import hedgehogLogo from '../../../assets/hedgehog-logo.png'
 import { scrollProgress } from '../scrollProgress'
 
 // A little hedgehog that trots along the bottom of the screen as the reader scrolls.
