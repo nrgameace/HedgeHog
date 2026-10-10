@@ -53,9 +53,19 @@ again; nothing is saved between visits.
    graphs showing hedged vs. unhedged revenue volatility.
 
 ## Current state
-- `backend/` — FastAPI app scaffolded with a `/health` endpoint, pytest
-  wired up, TDD'd (test written and confirmed red before the
-  implementation went green).
+- `backend/` — FastAPI app with `/health` and `POST /analyze`, all TDD'd.
+  `/analyze` accepts the frontend's real request shape (`answers` JSON +
+  optional `financials` CSV, see TECHSTACK.md's contract) and runs
+  **Model call 1 (trend detection)** for real: parses the CSV
+  (`app/csv_parsing.py`), builds a prompt from the 9 questionnaire
+  answers (`app/questionnaire.py`, `app/prompts.py`), calls the
+  Akamai-hosted `hackathon-chat` model (`app/akamai_client.py`), and
+  parses its reply into categories (`app/trend_detection.py`). Response
+  is currently `{"hedgeable_categories": [{category, label, reasoning}]}`
+  — **not yet** the full `HedgeReport` the frontend's contract expects,
+  since that needs Model call 2 (position sizing) and a Kalshi client,
+  neither of which exist yet. `backend/.env` holds the real Akamai
+  credentials (gitignored); `backend/.env.example` is the template.
 - `frontend/` — full home → questionnaire → results flow built via TDD,
   running on **mock data** (`MOCK_API` in `frontend/src/api/client.ts`,
   on by default). Questionnaire asks the 9 free-text questions in step 2
@@ -79,9 +89,13 @@ again; nothing is saved between visits.
   questionnaire answers, and a "what Hedgehog should find" checklist).
   Build, test and demo against these instead of inventing data. Frontend
   tests mirror the demo answers in `frontend/src/test/answers.ts`.
-- Not yet built: the backend `POST /analyze` endpoint the frontend calls
-  when mock mode is off (contract in TECHSTACK.md), CSV parsing, the two
-  model calls, Kalshi client, Akamai deployment wiring.
+- Not yet built: Model call 2 (position sizing), the Kalshi client, and
+  turning `hedgeable_categories` into the full `HedgeReport` shape
+  (`bets`/`profitSeries`/`simulatedPeriod`) the frontend's contract
+  expects — plus Akamai deployment wiring. The frontend still runs on
+  mock data (`MOCK_API` default) until all of that lands; flip
+  `VITE_USE_MOCK_API=false` to hit the real `/analyze` and see today's
+  partial response.
 
 ## Parts of the project
 - Questionnaire + CSV upload UI (frontend)
