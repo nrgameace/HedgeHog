@@ -33,10 +33,13 @@ starts fresh: the user answers the questionnaire and uploads financials
 again; nothing is saved between visits.
 
 1. **Homepage** — links straight into the questionnaire. No login screen.
-2. **Questionnaire** — the owner answers questions about their company
-   (what factors they believe impact them — rain, gas prices, GPU
-   prices, etc. — plus expected earnings) and attaches a CSV of their
-   financials.
+2. **Questionnaire** — the owner answers free-text questions about how
+   their company works: what it does, its customers, location, what it
+   relies on day to day, the materials/services it uses most, what
+   outside events have hurt it, which times of year matter, which costs
+   are locked in at a set price, and how much budget they have for risk
+   mitigation (sizes the bets). Nothing the financials CSV already reports
+   (earnings, costs) is asked. They can attach a CSV of their financials.
 3. **Submit** — triggers the backend pipeline:
    a. **Model call 1 — trend detection**: given the uploaded financials
       and stated risk factors, identify which trends are currently
@@ -53,11 +56,32 @@ again; nothing is saved between visits.
 - `backend/` — FastAPI app scaffolded with a `/health` endpoint, pytest
   wired up, TDD'd (test written and confirmed red before the
   implementation went green).
-- `frontend/` — Vite + React + TS scaffolded, Vitest + React Testing
-  Library wired up, homepage stub ("Hedgehog" heading + "Start" link)
-  built via TDD.
-- Not yet built: questionnaire + CSV upload UI, CSV parsing, the two
-  model calls, Kalshi client, results dashboard, Akamai deployment wiring.
+- `frontend/` — full home → questionnaire → results flow built via TDD,
+  running on **mock data** (`MOCK_API` in `frontend/src/api/client.ts`,
+  on by default). Questionnaire asks the 9 free-text questions in step 2
+  (none required while the app runs on simulated data), defined as one list in `frontend/src/pages/QuestionnairePage.tsx`,
+  plus an **optional** CSV upload (any shape, max 5 MB) — optional while
+  the app runs on simulated data. Since the backend isn't hooked up,
+  the results page **always shows simulated results for Two Scoops
+  Creamery**, whatever is entered (`frontend/src/api/twoScoopsReport.ts`):
+  six fixed Kalshi trades simulated against its real 2024 monthly profit
+  (rain paid out in the washed-out May–June). The results table shows
+  each trade's risk ("what could hurt your profit"), market, side, amount per trade, frequency, reasoning, net
+  for the year and variance mitigation (share of the bad-month shortfall
+  covered — `frontend/src/report/tradeImpact.ts`), with totals at the
+  bottom. The graph shows the total trade impact; clicking a row shows
+  that trade's graph, clicking the totals row goes back. Screens are React state in
+  `App.tsx` (no router), so a refresh starts over.
+- `demo-data/` — **the north-star simulated data**: two fictional
+  businesses (Two Scoops Creamery, an Austin ice cream shop, 2016–2026;
+  Quillstack AI, an SF AI startup, 2024–2026), each with a detailed
+  monthly `financials.csv` and a `background.md` (story, ready-to-paste
+  questionnaire answers, and a "what Hedgehog should find" checklist).
+  Build, test and demo against these instead of inventing data. Frontend
+  tests mirror the demo answers in `frontend/src/test/answers.ts`.
+- Not yet built: the backend `POST /analyze` endpoint the frontend calls
+  when mock mode is off (contract in TECHSTACK.md), CSV parsing, the two
+  model calls, Kalshi client, Akamai deployment wiring.
 
 ## Parts of the project
 - Questionnaire + CSV upload UI (frontend)
