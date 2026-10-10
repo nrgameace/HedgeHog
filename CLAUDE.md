@@ -53,49 +53,58 @@ again; nothing is saved between visits.
    graphs showing hedged vs. unhedged revenue volatility.
 
 ## Current state
-- `backend/` — FastAPI app with `/health` and `POST /analyze`, all TDD'd.
-  `/analyze` accepts the frontend's real request shape (`answers` JSON +
-  optional `financials` CSV, see TECHSTACK.md's contract) and runs
-  **Model call 1 (trend detection)** for real: parses the CSV
-  (`app/csv_parsing.py`), builds a prompt from the 9 questionnaire
-  answers (`app/questionnaire.py`, `app/prompts.py`), calls the
-  Akamai-hosted `hackathon-chat` model (`app/akamai_client.py`), and
-  parses its reply into categories (`app/trend_detection.py`). Response
-  is currently `{"hedgeable_categories": [{category, label, reasoning}]}`
-  — **not yet** the full `HedgeReport` the frontend's contract expects,
-  since that needs Model call 2 (position sizing) and a Kalshi client,
-  neither of which exist yet. `backend/.env` holds the real Akamai
-  credentials (gitignored); `backend/.env.example` is the template.
-- `frontend/` — full home → questionnaire → results flow built via TDD,
-  running on **mock data** (`MOCK_API` in `frontend/src/api/client.ts`,
-  on by default). Questionnaire asks the 9 free-text questions in step 2
-  (none required while the app runs on simulated data), defined as one list in `frontend/src/pages/QuestionnairePage.tsx`,
-  plus an **optional** CSV upload (any shape, max 5 MB) — optional while
-  the app runs on simulated data. Since the backend isn't hooked up,
-  the results page **always shows simulated results for Two Scoops
-  Creamery**, whatever is entered (`frontend/src/api/twoScoopsReport.ts`):
-  six fixed Kalshi trades simulated against its real 2024 monthly profit
-  (rain paid out in the washed-out May–June). The results table shows
-  each trade's risk ("what could hurt your profit"), market, side, amount per trade, frequency, reasoning, net
-  for the year and variance mitigation (share of the bad-month shortfall
-  covered — `frontend/src/report/tradeImpact.ts`), with totals at the
-  bottom. The graph shows the total trade impact; clicking a row shows
-  that trade's graph, clicking the totals row goes back. Screens are React state in
-  `App.tsx` (no router), so a refresh starts over.
+Wired end to end: the frontend calls the real backend by default, and
+`POST /analyze` returns the full `HedgeReport` the results page renders.
+- `backend/` — FastAPI, all TDD'd. `/analyze` takes `answers` JSON + a
+  **required** `financials` CSV (400 with a readable `detail` if it's
+  missing or unusable). `app/pipeline.py` runs, in order:
+  1. `financial_history.py` — finds the month column (`month`/`date`/
+     `period`) and profit column (`operating_income` → `net_income` →
+     `profit` → `gross_profit`), then picks the year to simulate: the
+     **worst of the 3 most recent complete calendar years** (largest RMS
+     shortfall below "expected" = the same month's mean in every other
+     year). Two Scoops → 2024, Quillstack → 2025. Fails before any model
+     call.
+  2. **Model call 1 — trend detection** (`trend_detection.py`) → hedgeable
+     categories. If none, return the report with no bets.
+  3. `market_catalog.py` + `kalshi_client.py` — open markets from 21 Kalshi
+     series via the public no-auth API (5 s timeout per series; up to 5
+     markets each, YES price 0.03–0.97). If Kalshi returns nothing at all,
+     `FALLBACK_MARKETS` (clearly labelled mock) keeps the demo working.
+  4. **Model call 2 — position sizing** (`position_sizing.py`) gets Model
+     call 1's categories, the candidate markets, the simulated year's
+     profit + CSV notes and the risk budget; returns bets (category,
+     ticker, side, stake, trade months, months it paid out). Bets naming
+     an unknown ticker/category, duplicates or bad fields are dropped.
+  5. `risk_budget.py` + `backtest.py` — stakes are scaled so no month
+     exceeds the budget; monthly net = `round(stake / price)` in hit
+     months minus the stake in trade months (NO price = 1 − YES price).
+  6. `hedge_report.py` — camelCase `HedgeReport`.
+  A full run takes ~35 s (two model calls + ~3 s of Kalshi fetches).
+  `backend/.env` holds the real Akamai credentials (gitignored);
+  `backend/.env.example` is the template. CORS allows `ALLOWED_ORIGINS`
+  (default `http://localhost:5173`).
+- `frontend/` — home → questionnaire → results, TDD'd. Calls the real
+  `/analyze` by default; `VITE_USE_MOCK_API=true` switches to the
+  simulated Two Scoops Creamery report (`frontend/src/api/twoScoopsReport.ts`),
+  kept for offline demos and tests. The questionnaire asks the 9 free-text
+  questions (none required); the CSV upload is required unless mock mode
+  is on. Backend error `detail`s are shown on the form. The results table
+  shows each trade's risk, market, side, amount per trade, frequency,
+  reasoning, net for the year and variance mitigation
+  (`frontend/src/report/tradeImpact.ts`), with totals; clicking a row shows
+  that trade's graph. Screens are React state in `App.tsx` (no router).
+- `.claude/launch.json` has `frontend` (5173) and `backend` (8000) configs.
 - `demo-data/` — **the north-star simulated data**: two fictional
   businesses (Two Scoops Creamery, an Austin ice cream shop, 2016–2026;
   Quillstack AI, an SF AI startup, 2024–2026), each with a detailed
   monthly `financials.csv` and a `background.md` (story, ready-to-paste
   questionnaire answers, and a "what Hedgehog should find" checklist).
-  Build, test and demo against these instead of inventing data. Frontend
-  tests mirror the demo answers in `frontend/src/test/answers.ts`.
-- Not yet built: Model call 2 (position sizing), the Kalshi client, and
-  turning `hedgeable_categories` into the full `HedgeReport` shape
-  (`bets`/`profitSeries`/`simulatedPeriod`) the frontend's contract
-  expects — plus Akamai deployment wiring. The frontend still runs on
-  mock data (`MOCK_API` default) until all of that lands; flip
-  `VITE_USE_MOCK_API=false` to hit the real `/analyze` and see today's
-  partial response.
+  Build, test and demo against these instead of inventing data. Backend
+  tests read these CSVs directly; frontend tests mirror the demo answers
+  in `frontend/src/test/answers.ts`.
+- Not yet built: Akamai deployment wiring. Model output varies run to
+  run (temperature 0.2), so the exact bets differ between demos.
 
 ## Parts of the project
 - Questionnaire + CSV upload UI (frontend)
@@ -120,11 +129,6 @@ again; nothing is saved between visits.
   pieces for real integrations post-hackathon doesn't require a rewrite.
 
 ## Open questions (fill in before/while building)
-- CSV format: what columns/shape does the financials CSV need? Will we
-  define a fixed schema and validate against it, or accept loose
-  formats and let the model handle variance?
-- Kalshi auth: sandbox API keys or production read-only keys for market
-  data?
 - Akamai specifics: which Akamai product(s) — App Platform, Cloud
   Compute, the LLM hosting product — and how backend deploy + model
   hosting are wired together.
