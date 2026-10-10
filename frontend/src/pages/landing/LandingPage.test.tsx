@@ -1,9 +1,12 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import LandingPage from './LandingPage'
 
 describe('LandingPage', () => {
+  beforeEach(() => vi.spyOn(window, 'scrollTo').mockImplementation(() => {}))
+  afterEach(() => vi.restoreAllMocks())
+
   it('introduces hedgehog with its logo', () => {
     render(<LandingPage onStart={() => {}} />)
 
@@ -19,6 +22,14 @@ describe('LandingPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /let's begin/i }))
 
     expect(onStart).toHaveBeenCalledTimes(2)
+  })
+
+  it('returns the reader to the top of the page when they start, so the next screen opens at its beginning', () => {
+    render(<LandingPage onStart={() => {}} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /let's begin/i }))
+
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 0)
   })
 
   it('tells the story of steadier cash flow for small and mid-sized businesses as you scroll', () => {

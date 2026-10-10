@@ -21,6 +21,11 @@ const STEPS = [
 
 // Scroll-driven landing page. Styles are scoped under .landing so other pages are untouched.
 function LandingPage({ onStart }: LandingPageProps) {
+  function start() {
+    window.scrollTo(0, 0)
+    onStart()
+  }
+
   return (
     <div className="landing">
       <div className="landing__backdrop" aria-hidden="true"><FallingLeaves /></div>
@@ -35,7 +40,7 @@ function LandingPage({ onStart }: LandingPageProps) {
           <p className="landing-hero__lede">
             We help small and mid-sized businesses balance their cash flow, so a rainy week or a jump in gas prices never decides how your month turns out.
           </p>
-          <button type="button" className="landing-button" onClick={onStart}>Start</button>
+          <button type="button" className="landing-button" onClick={start}>Start</button>
           <p className="landing-hero__scroll-cue">Scroll to see how it works</p>
           <RollingHills />
         </header>
@@ -69,7 +74,7 @@ function LandingPage({ onStart }: LandingPageProps) {
 
         <StoryScene eyebrow="Who it's for" heading="Built for businesses like yours." graphic={<MainStreetGraphic />} layout="stacked">
           <p>From the corner café to the family farm, hedgehog helps you plan ahead with confidence, season after season.</p>
-          <button type="button" className="landing-button" onClick={onStart}>Let's begin</button>
+          <button type="button" className="landing-button" onClick={start}>Let's begin</button>
         </StoryScene>
       </div>
 
