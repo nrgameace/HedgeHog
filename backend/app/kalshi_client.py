@@ -24,12 +24,17 @@ class KalshiApiError(Exception):
     pass
 
 
+def _plain_text(text: str) -> str:
+    return text.replace("*", "").strip()
+
+
 def _parse_market(item: object) -> KalshiMarket | None:
     if not isinstance(item, dict):
         return None
     try:
-        market = KalshiMarket(ticker=item["ticker"], title=item["title"], subtitle=item.get("yes_sub_title") or "", yes_price=float(item["yes_ask_dollars"]))
-    except (KeyError, TypeError, ValueError):
+        title, subtitle = _plain_text(item["title"]), _plain_text(item.get("yes_sub_title") or "")
+        market = KalshiMarket(ticker=item["ticker"], title=title, subtitle=subtitle, yes_price=float(item["yes_ask_dollars"]))
+    except (AttributeError, KeyError, TypeError, ValueError):
         return None
     return market if MIN_TRADEABLE_PRICE <= market.yes_price <= MAX_TRADEABLE_PRICE else None
 

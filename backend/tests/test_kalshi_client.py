@@ -77,3 +77,13 @@ def test_fetch_raises_on_transport_error():
 
     with pytest.raises(KalshiApiError):
         fetch_open_markets("KXRAINAUSM", _client(handler))
+
+
+def test_fetch_strips_markdown_emphasis_from_titles():
+    markets = fetch_open_markets("KXAAAGASM", _respond_with([_market("G", title="Will average **gas prices** be above $4.50?", yes_sub_title="Above *4.50*")]))
+
+    assert (markets[0].title, markets[0].subtitle) == ("Will average gas prices be above $4.50?", "Above 4.50")
+
+
+def test_fetch_skips_market_with_non_text_title():
+    assert fetch_open_markets("KXRAINAUSM", _respond_with([_market("BAD", title=None), _market("OK")]))[0].ticker == "OK"
