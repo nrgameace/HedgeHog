@@ -35,3 +35,10 @@ def test_raises_on_ragged_row():
 
     with pytest.raises(InvalidCsvError):
         parse_csv_rows(content)
+
+
+def test_raises_on_field_larger_than_csv_module_limit():
+    content = b"note\n" + b"a" * 200_000 + b"\n"
+
+    with pytest.raises(InvalidCsvError):
+        parse_csv_rows(content)

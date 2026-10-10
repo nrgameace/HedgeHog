@@ -9,11 +9,16 @@ _CHUNK_SIZE_BYTES = 64 * 1024
 
 
 async def _read_within_limit(file: UploadFile, max_size_bytes: int) -> bytes:
+    # Files up to and including max_size_bytes are accepted; only files
+    # strictly larger are rejected. This only bounds memory use inside the
+    # handler once the ASGI server has already received the upload — it is
+    # not a defense against a large request body arriving over the wire; a
+    # reverse proxy / ASGI server body-size cap would be needed for that.
     chunks = bytearray()
     while chunk := await file.read(_CHUNK_SIZE_BYTES):
         chunks.extend(chunk)
         if len(chunks) > max_size_bytes:
-            raise HTTPException(status_code=413, detail=f"financials file exceeds {max_size_bytes} byte limit")
+            raise HTTPException(status_code=413, detail=f"financials file exceeds the {max_size_bytes}-byte limit")
     return bytes(chunks)
 
 
