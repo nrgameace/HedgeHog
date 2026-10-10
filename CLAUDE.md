@@ -138,11 +138,22 @@ the contract resolves on**, so:
     candidates it was shown.
   - Unauthenticated by design: market data needs no credentials, so no
     request signing exists rather than sitting unused.
-- Not yet built: model call 1 (trend detection), model call 2's LLM
-  selection stage, cross-factor portfolio allocation, fee schedule, the
-  CSV-to-daily-revenue converter, the `revenueSeries` generator,
-  orchestration endpoint, Akamai deployment wiring. Frontend flow exists
-  on a branch but is unmerged and on mocks.
+- `backend/app/model/` — the Qwen-on-Akamai client, TDD'd:
+  - `client.py` — OpenAI-compatible `complete_json()`, tolerant of
+    markdown fences and surrounding prose, raising rather than returning
+    junk. `client_from_env()` returns `None` when `MOCK_MODEL` is unset
+    or true, which is a supported state: callers fall back to curated
+    defaults so the pipeline runs before the endpoint exists.
+  - `vocabulary.py` — `search_vocabulary()` asks the model which words
+    Kalshi would title a series with, then merges the validated proposal
+    over the curated table. This is what stops `search.py`'s expansion
+    table from being a ceiling on which businesses the app can serve.
+- Not yet built: model call 1 (trend detection), model call 2's market
+  *selection* stage (which market, which side, impact %), cross-factor
+  portfolio allocation, fee schedule, the CSV-to-daily-revenue
+  converter, the `revenueSeries` generator, orchestration endpoint,
+  Akamai deployment wiring. Frontend flow exists on a branch but is
+  unmerged and on mocks.
 
 ## Parts of the project
 - Questionnaire + CSV upload UI (frontend)

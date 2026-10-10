@@ -38,11 +38,25 @@ sees the same ground truth. Project context/flow lives in
 - **Model**: a **Qwen** model hosted on **Akamai**, queried by the
   backend over HTTP. This settles both the "which Akamai product" and
   "which model provider" questions.
-- Still to confirm: exact Qwen variant, and whether Akamai exposes an
-  OpenAI-compatible chat/completions API. Both model calls return strict
-  JSON, so JSON-schema adherence needs testing early — it is the most
-  likely place a smaller model misbehaves, and the ticker-validation
-  guard exists for exactly that reason.
+- **Wire format assumed OpenAI-compatible**: `POST {MODEL_BASE_URL}/chat/
+  completions` with `{model, messages, temperature, max_tokens}`, reply
+  read from `choices[0].message.content`. `backend/app/model/client.py`
+  is the only file to change if Akamai differs.
+- **Configuration** (all env vars, read by `client_from_env()`):
+  - `MOCK_MODEL` — defaults to `true`. Must be explicitly `false` before
+    anything calls out, so an unconfigured endpoint cannot be hit by
+    accident. When unset or `true`, callers fall back to curated
+    defaults and the pipeline still runs end to end.
+  - `MODEL_BASE_URL`, `MODEL_NAME`, `MODEL_API_KEY` (optional).
+- Calls run at `temperature=0`: these are classification and vocabulary
+  lookups, where sampling variety is a liability.
+- Model replies are never trusted directly. `complete_json()` tolerates
+  markdown fences, surrounding prose and nested objects, and raises
+  rather than returning junk; every caller validates the parsed result
+  and degrades to a curated default on failure.
+- Still to confirm: exact Qwen variant, and whether Akamai really is
+  OpenAI-compatible. JSON adherence needs testing early — it is the most
+  likely place a smaller model misbehaves.
 - Hosted on Akamai; the backend queries it over HTTP.
 - Two sequential model calls per submission:
   1. **Trend detection** — given uploaded financials + stated risk
@@ -193,7 +207,25 @@ temperature has broad city coverage: `KXHIGHNY`, `HIGHAUS`, `KXLOWTSFO`,
   A curated expansion table bridges factor wording to Kalshi's product
   names, which pure lexical matching cannot do — the series an AI
   startup needs is titled "B200 Monthly" and shares no word with "GPU
-  costs". Embeddings are the obvious upgrade.
+  costs".
+- 2026-10-10 — **The model proposes the search vocabulary**
+  (`app/model/vocabulary.py`), rather than the curated table being the
+  ceiling. Naming what a market is likely called is exactly the
+  knowledge a language model has and a keyword index does not, and the
+  call returns search words only — never a number, size or tradeable
+  ticker. The proposal is merged *over* the curated table so a thin
+  reply cannot cost recall the demo scenarios already have, and
+  everything returned is validated: concepts the factor never mentioned
+  are dropped so the model cannot widen the search itself, terms are
+  reduced to matchable tokens, and both are capped. Live comparison:
+  - "TPU rental costs" — curated finds health-insurance cost and Social
+    Security COLA; proposed finds the H100 price series.
+  - "shipping delays" — curated finds airport flight-delay series;
+    proposed finds port container-throughput series.
+  - "coffee bean prices" — identical, because "coffee" already matches
+    `KXCOFFEEW` directly. The model helps only where Kalshi's naming
+    diverges from business wording.
+  Embeddings over titles remain the cleaner long-term answer.
 - 2026-10-10 — A category *boost* was tried and removed. Lifting series
   whose Kalshi category fits the factor inverted stronger lexical
   matches whenever the margin was under the boost: "chip prices" put

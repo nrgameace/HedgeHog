@@ -140,14 +140,18 @@ def normalize(text: str) -> tuple[str, ...]:
     return tuple(seen)
 
 
-def rank_series(factor: str, catalogue: Sequence[Series], limit: int = DEFAULT_LIMIT, min_score: float = 0.0, require_known_horizon: bool = True, weights: TermWeights | None = None) -> list[Candidate]:
+def rank_series(factor: str, catalogue: Sequence[Series], limit: int = DEFAULT_LIMIT, min_score: float = 0.0, require_known_horizon: bool = True, weights: TermWeights | None = None, expansions: Mapping[str, Sequence[str]] = EXPANSIONS) -> list[Candidate]:
     """The series most plausibly related to a stated risk factor, best first.
 
     `require_known_horizon` drops `custom` and `one_off` frequencies: without a
     derivable window the revenue shortfall cannot be period-matched, so such a
     series cannot be sized even if it is topically perfect.
+
+    `expansions` bridges factor wording to Kalshi's product names. The curated
+    default covers the demo scenarios; `app.model.vocabulary` proposes one per
+    factor so a business nobody anticipated is not limited to that table.
     """
-    query = _query_terms(factor)
+    query = _query_terms(factor, expansions)
     if not query:
         return []
 
@@ -174,7 +178,7 @@ def _is_eligible(series: Series, require_known_horizon: bool) -> bool:
     return not require_known_horizon or series.frequency in NOMINAL_WINDOW_DAYS
 
 
-def _query_terms(factor: str) -> _Query:
+def _query_terms(factor: str, expansions: Mapping[str, Sequence[str]] = EXPANSIONS) -> _Query:
     """Stated terms at full weight, generic ones discounted, expansions discounted further."""
     stated = normalize(factor)
     weights: dict[str, float] = {}
@@ -185,7 +189,7 @@ def _query_terms(factor: str) -> _Query:
         origins.setdefault(term, set()).add(term)
 
     for term in stated:
-        for synonym in EXPANSIONS.get(term, ()):
+        for synonym in expansions.get(term, ()):
             expanded = _singular(synonym)
             weights.setdefault(expanded, EXPANSION_WEIGHT)
             origins.setdefault(expanded, set()).add(term)
