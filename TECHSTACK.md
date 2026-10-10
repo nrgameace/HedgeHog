@@ -61,13 +61,22 @@ sees the same ground truth. Project context/flow lives in
 - **Hosting**: Akamai
 
 ## Model / LLM
-- Hosted on Akamai; the backend queries it over HTTP.
+- Hosted on Akamai; the backend queries it over HTTP at
+  `https://ws.akamai-workshops.com/v1` — OpenAI Chat Completions-
+  compatible (`POST /chat/completions`, `Authorization: Bearer <key>`),
+  served by vLLM running `Qwen/Qwen3.8-27B-FP8` (confirmed live;
+  reasoning/thinking mode off by default, so no `<think>` stripping
+  needed). Model names: `hackathon-chat` (text), `hackathon-image`
+  (unused so far), `hackathon-embedding` (unused so far).
 - Two sequential model calls per submission:
-  1. **Trend detection** — given uploaded financials + stated risk
-     factors, identify which trends are currently hedgeable.
-  2. **Position sizing** — given a hedgeable trend, decide which Kalshi
-     market/position to bet on and how much.
-- Not yet decided: exact model(s)/provider behind these two calls.
+  1. **Trend detection** — **implemented** (`backend/app/trend_detection.py`,
+     wired into `POST /analyze`). Given the 9 questionnaire answers +
+     parsed financials CSV (capped at 200 rows in the prompt), returns
+     1–5 hedgeable categories as `{category, label, reasoning}`.
+     Temperature 0.2. Request timeout 60s.
+  2. **Position sizing** — not built yet. Given a hedgeable category,
+     decide which Kalshi market/position to bet on and how much (uses
+     `riskBudget` to size total bets).
 
 ## External APIs
 - **Kalshi API**: real API calls for live market data. Trade placement
@@ -99,3 +108,14 @@ sees the same ground truth. Project context/flow lives in
 - 2026-10-10 — North-star demo data in `demo-data/`: two fixed
   fictional businesses (ice cream shop, AI startup) with hand-built
   monthly CSVs and background stories. No generator, no randomness.
+- 2026-10-10 — Backend `POST /analyze` built and wired to the real
+  Akamai trend-detection call. Response is `{"hedgeable_categories":
+  [...]}` only, not the full `HedgeReport` the frontend's contract
+  documents above — position sizing and Kalshi aren't built yet, so the
+  frontend should stay on `MOCK_API` until that lands.
+- 2026-10-10 — `chat_complete`'s blocking `httpx` call is run via
+  FastAPI's `run_in_threadpool` from the async `/analyze` route, so one
+  slow model call doesn't stall the event loop for other requests.
+  Upstream errors are mapped to client-facing status codes
+  (`AkamaiConfigError`→500, `AkamaiApiError`/`TrendDetectionError`→502)
+  without leaking the raw upstream error body to the client.
