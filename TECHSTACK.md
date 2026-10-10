@@ -115,6 +115,11 @@ it is dead**. Checked market-by-market:
 - `KXPPISEMI` / `PPISEMI` — Semiconductor PPI (monthly), as a fallback.
 - `KXGPURULE` — GPU export restrictions, but `custom` frequency, so no
   derivable window.
+- An **H100** family also exists (`KXH100W` weekly, `KXH100MON` monthly,
+  `KXH100MAX` annual) and scores well, but weekly and monthly are
+  **entirely finalized**; only `KXH100MAX` has active markets (6). Don't
+  spend time on H100 weekly — `KXB200MS` monthly is the only compute
+  series with real depth.
 
 **Ice cream shop — daily weather.** 122 daily weather series exist, but
 they are overwhelmingly *temperature*, not rain. Daily rain is nearly
@@ -171,6 +176,29 @@ temperature has broad city coverage: `KXHIGHNY`, `HIGHAUS`, `KXLOWTSFO`,
   10 October sizes 10,560 contracts clipped versus 14,880 unclipped.
   Both report 100% volatility reduction, so the error is invisible in
   the output — it is a perfect hedge of a period that has partly gone.
+- 2026-10-10 — Relevance scoring is recall-oriented, not precision-
+  oriented: it exists to get plausible candidates into the prompt, and
+  the model supplies precision. Term weighting is normalised IDF over
+  series titles, which suppresses ubiquitous words like "price" without
+  a hand-maintained domain stopword list. Two corrections came from
+  running it against the live catalogue:
+  - **Generic business words are down-weighted.** "cost" is lexically
+    rare across 14,942 titles so IDF rates it highly, and "GPU costs"
+    ranked employer health insurance cost and Social Security COLA
+    above every GPU price series.
+  - **Scores scale by how much of the stated factor a title covers.**
+    One rare word otherwise carries a result: "cold weather" put a
+    Dunkin' Cold Brew series above every temperature market on the
+    strength of "cold" alone.
+  A curated expansion table bridges factor wording to Kalshi's product
+  names, which pure lexical matching cannot do — the series an AI
+  startup needs is titled "B200 Monthly" and shares no word with "GPU
+  costs". Embeddings are the obvious upgrade.
+- 2026-10-10 — A category *boost* was tried and removed. Lifting series
+  whose Kalshi category fits the factor inverted stronger lexical
+  matches whenever the margin was under the boost: "chip prices" put
+  "B100 Yearly Directional Price" (matching only "price") above
+  "Semiconductor PPI". Category remains a hard filter only.
 - Not yet decided: Kalshi fee schedule. `size_position()` takes
   `fee_per_contract` as a parameter rather than embedding a formula —
   pull the live schedule into one place before the demo.

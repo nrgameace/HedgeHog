@@ -129,13 +129,20 @@ the contract resolves on**, so:
     cursor pagination, `get_orderbook()`, and `quotes_for_series()`
     which pairs each tradeable market with its own window and quotes it
     at real book depth.
+  - `search.py` — `rank_series()` narrows the catalogue to the
+    candidates a model can reason over. Normalised IDF over titles,
+    curated factor-to-product expansions, generic business words
+    down-weighted, and scores scaled by how much of the stated factor a
+    title accounts for. Recall-oriented by design: the model supplies
+    precision, and its chosen tickers are validated against the
+    candidates it was shown.
   - Unauthenticated by design: market data needs no credentials, so no
     request signing exists rather than sitting unused.
-- Not yet built: model call 1 (trend detection), model call 2's
-  relevance scoring + LLM selection stages, cross-factor portfolio
-  allocation, fee schedule, the CSV-to-daily-revenue converter, the
-  `revenueSeries` generator, orchestration endpoint, Akamai deployment
-  wiring. Frontend flow exists on a branch but is unmerged and on mocks.
+- Not yet built: model call 1 (trend detection), model call 2's LLM
+  selection stage, cross-factor portfolio allocation, fee schedule, the
+  CSV-to-daily-revenue converter, the `revenueSeries` generator,
+  orchestration endpoint, Akamai deployment wiring. Frontend flow exists
+  on a branch but is unmerged and on mocks.
 
 ## Parts of the project
 - Questionnaire + CSV upload UI (frontend)
