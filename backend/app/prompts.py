@@ -1,7 +1,13 @@
 import csv
 import io
+from typing import TYPE_CHECKING
 
+from app.financial_history import ProfitHistory
+from app.kalshi_client import KalshiMarket
 from app.questionnaire import QuestionnaireAnswers
+
+if TYPE_CHECKING:
+    from app.trend_detection import HedgeableCategory
 
 TREND_DETECTION_SYSTEM_PROMPT = """You are a financial risk analyst for Hedgehog, a tool that helps small business owners hedge against market volatility using prediction markets (Kalshi).
 
@@ -50,5 +56,61 @@ Risk mitigation budget: {answers.risk_budget}
 {csv_text}"""
     return [
         {"role": "system", "content": TREND_DETECTION_SYSTEM_PROMPT},
+        {"role": "user", "content": user_content},
+    ]
+
+
+POSITION_SIZING_SYSTEM_PROMPT = """You are a hedging strategist for Hedgehog, a tool that helps small business owners smooth out their profit by placing small paper (simulated) trades on Kalshi prediction markets.
+
+The previous analysis step already found the categories of risk this business can hedge. You are given those categories, the owner's context and monthly risk budget, a list of open Kalshi markets with their current YES price, and the business's monthly profit for a past year (expected in a normal year vs. what actually happened, with the owner's notes).
+
+For each category worth hedging, choose ONE market from the candidate list:
+- Use only a "category" slug from the categories given, at most one bet per category.
+- Use only a "ticker" from the candidate list, copied exactly.
+- Pick the "side" (YES or NO) that pays out when the business is hurt.
+- Keep the total stake placed in any single month within the owner's monthly risk budget.
+- "tradeMonths": the months of the year (0 = Jan ... 11 = Dec) when this risk matters and the trade is placed.
+- "hitMonths": the months of the past year, a subset of tradeMonths, when the event most likely happened, judged from the notes and the months where actual profit fell short of expected. Use [] when there is no evidence.
+- "riskExplanation": one short sentence on what could hurt the owner's profit.
+- "rationale": one plain-English sentence on why this trade helps.
+- "frequency": a short label such as "Monthly, Apr–Jun" or "Quarterly".
+Skip a category if no candidate market fits it.
+
+Respond with ONLY a single JSON object. No markdown code fences, no explanation before or after it. Match exactly this shape:
+
+{"bets": [{"category": "<slug>", "ticker": "<ticker>", "side": "YES", "amountUsd": 100, "frequency": "<label>", "tradeMonths": [0], "hitMonths": [], "riskExplanation": "<sentence>", "rationale": "<sentence>"}]}"""
+
+
+def _format_profit_month(index: int, history: ProfitHistory, notes: dict[int, str]) -> str:
+    point = history.points[index]
+    line = f"{point.period}: expected {point.expected} / actual {point.actual}"
+    return f"{line} — {notes[index]}" if index in notes else line
+
+
+def _format_market(market: KalshiMarket) -> str:
+    name = f"{market.title} — {market.subtitle}" if market.subtitle else market.title
+    return f"{market.ticker} | {name} | YES price {market.yes_price:.2f}"
+
+
+def build_position_sizing_messages(answers: QuestionnaireAnswers, categories: list["HedgeableCategory"], history: ProfitHistory, notes: dict[int, str], markets: list[KalshiMarket]) -> list[dict[str, str]]:
+    category_lines = "\n".join(f"{category.category} | {category.label} | {category.reasoning}" for category in categories)
+    profit_lines = "\n".join(_format_profit_month(index, history, notes) for index in range(len(history.points)))
+    market_lines = "\n".join(_format_market(market) for market in markets)
+    user_content = f"""What the business does: {answers.business_description}
+Location: {answers.location}
+Important times of year: {answers.time_of_year}
+Costs already locked in at a fixed price: {answers.locked_in_costs}
+Monthly risk budget: {answers.risk_budget}
+
+Hedgeable categories (slug | label | reasoning):
+{category_lines}
+
+Monthly profit in {history.simulated_year} (expected in a normal year / actual, with notes):
+{profit_lines}
+
+Candidate Kalshi markets (ticker | market | YES price):
+{market_lines}"""
+    return [
+        {"role": "system", "content": POSITION_SIZING_SYSTEM_PROMPT},
         {"role": "user", "content": user_content},
     ]

@@ -1,21 +1,9 @@
 import pytest
 
-from app.questionnaire import QuestionnaireAnswers
 from app.trend_detection import HedgeableCategory, TrendDetectionError, detect_hedgeable_categories
+from tests.sample_data import ANSWERS
 
 VALID_REPLY = '{"hedgeable_categories": [{"category": "rain", "label": "Rain", "reasoning": "Owner says rainy days hurt ice cream sales."}]}'
-
-ANSWERS = QuestionnaireAnswers(
-    business_description="Ice cream shop with outdoor seating",
-    customers="Mostly tourists and families in summer",
-    location="Austin, TX",
-    operational_dependencies="Refrigeration, a delivery van, foot traffic",
-    key_materials="Dairy, sugar, electricity, gas for the van",
-    past_impacts="Rainy weekends, heat waves, gas price spikes",
-    time_of_year="June-August is tourist season; winter is slow",
-    locked_in_costs="Milk is on a fixed-price contract through 2027",
-    risk_budget="$500 a month",
-)
 
 
 def test_detect_hedgeable_categories_parses_valid_response(monkeypatch):
