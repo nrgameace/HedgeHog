@@ -56,8 +56,21 @@ again; nothing is saved between visits.
 - `frontend/` — Vite + React + TS scaffolded, Vitest + React Testing
   Library wired up, homepage stub ("Hedgehog" heading + "Start" link)
   built via TDD.
-- Not yet built: questionnaire + CSV upload UI, CSV parsing, the two
-  model calls, Kalshi client, results dashboard, Akamai deployment wiring.
+- `backend/app/hedge/` — the pure math core of model call 2, TDD'd:
+  - `sizing.py` — `size_position()` turns an `Exposure` (baseline
+    revenue, revenue impact %, which side hurts) plus a `MarketQuote`
+    into a contract count, capped by budget and resting book depth, and
+    reports which constraint bound.
+  - `metrics.py` — scenario-weighted before/after stats (mean, stdev,
+    worst case, 5th percentile) and `compare_hedge()` for the dashboard.
+  - Both are pure: no network, no model calls, no Kalshi types. The
+    central result they encode is that contract count equals the dollar
+    revenue shortfall and is **independent of contract price** — price
+    sets the hedge's cost, not its size.
+- Not yet built: questionnaire + CSV upload UI, CSV parsing, model call 1
+  (trend detection), model call 2's retrieval + LLM selection stages,
+  Kalshi client, cross-factor portfolio allocation, fee schedule,
+  results dashboard, Akamai deployment wiring.
 
 ## Parts of the project
 - Questionnaire + CSV upload UI (frontend)
@@ -85,8 +98,15 @@ again; nothing is saved between visits.
 - CSV format: what columns/shape does the financials CSV need? Will we
   define a fixed schema and validate against it, or accept loose
   formats and let the model handle variance?
-- Kalshi auth: sandbox API keys or production read-only keys for market
-  data?
+- ~~Kalshi auth: sandbox API keys or production read-only keys for market
+  data?~~ **Resolved 2026-10-10**: market data needs no auth at all.
+  `GET /markets` against production returns 200 with no credentials, so
+  the demo needs no Kalshi keys. See TECHSTACK.md for the signing scheme
+  if real order placement is ever added.
+- Hedge budget: does the questionnaire collect it, or is it derived as a
+  % of revenue? `size_position()` needs a dollar budget.
+- Hedge horizon: one month or a quarter? Drives the `close_time` filter
+  on market retrieval.
 - Akamai specifics: which Akamai product(s) — App Platform, Cloud
   Compute, the LLM hosting product — and how backend deploy + model
   hosting are wired together.
