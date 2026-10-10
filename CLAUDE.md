@@ -60,7 +60,9 @@ Wired end to end: the frontend calls the real backend by default, and
   missing or unusable). `app/pipeline.py` runs, in order:
   1. `financial_history.py` — finds the month column (`month`/`date`/
      `period`) and profit column (`operating_income` → `net_income` →
-     `profit` → `gross_profit`), then picks the year to simulate: the
+     `profit` → `gross_profit`); reads `YYYY-MM[-DD]`, `YYYY/MM` and
+     `M/D/YYYY` dates, `$1,234` and `(1,234)` amounts and Excel's BOM;
+     then picks the year to simulate: the
      **worst of the 3 most recent complete calendar years** (largest RMS
      shortfall below "expected" = the same month's mean in every other
      year). Two Scoops → 2024, Quillstack → 2025. Fails before any model
@@ -68,7 +70,8 @@ Wired end to end: the frontend calls the real backend by default, and
   2. **Model call 1 — trend detection** (`trend_detection.py`) → hedgeable
      categories. If none, return the report with no bets.
   3. `market_catalog.py` + `kalshi_client.py` — open markets from 21 Kalshi
-     series via the public no-auth API (5 s timeout per series; up to 5
+     series via the public no-auth API, fetched in parallel with a 6 s
+     overall deadline (up to 5
      markets each, YES price 0.03–0.97). If Kalshi returns nothing at all,
      `FALLBACK_MARKETS` (clearly labelled mock) keeps the demo working.
   4. **Model call 2 — position sizing** (`position_sizing.py`) gets Model
@@ -80,7 +83,7 @@ Wired end to end: the frontend calls the real backend by default, and
      exceeds the budget; monthly net = `round(stake / price)` in hit
      months minus the stake in trade months (NO price = 1 − YES price).
   6. `hedge_report.py` — camelCase `HedgeReport`.
-  A full run takes ~35 s (two model calls + ~3 s of Kalshi fetches).
+  A full run takes ~35 s (two model calls; Kalshi adds well under 1 s).
   `backend/.env` holds the real Akamai credentials (gitignored);
   `backend/.env.example` is the template. CORS allows `ALLOWED_ORIGINS`
   (default `http://localhost:5173`).

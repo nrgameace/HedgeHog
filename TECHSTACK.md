@@ -39,7 +39,7 @@ sees the same ground truth. Project context/flow lives in
     first amount as monthly ("a year" ÷ 12, "a quarter" ÷ 3) and scales
     stakes so no month's total exceeds it.
   - `financials` — the uploaded CSV, **required** (400 if missing). Needs
-    a month column (`month`/`date`/`period`, `YYYY-MM[-DD]`) and a profit
+    a month column (`month`/`date`/`period`; `YYYY-MM[-DD]`, `YYYY/MM` or `M/D/YYYY`) and a profit
     column (`operating_income`, `net_income`, `profit` or
     `gross_profit`), plus at least one complete calendar year; an
     optional `notes` column feeds Model call 2. Max 5 MB.
@@ -109,8 +109,9 @@ sees the same ground truth. Project context/flow lives in
   NYC, Chicago, LA, Miami, SF and Seattle monthly rain (`KXRAIN…M`); Austin,
   NYC, Chicago, LA and Miami daily highs (`KXHIGH…`); gas (`KXAAAGASM`),
   oil (`KXWTI`), CPI, eggs, Fed rate/decision, unemployment, payrolls and
-  GDP. Up to 5 markets per series with YES price 0.03–0.97; 5 s timeout
-  per series; a failing series is skipped; if all fail, a hardcoded
+  GDP. Up to 5 markets per series with YES price 0.03–0.97; series are
+  fetched in parallel (5 s per request, 6 s overall deadline); a failing
+  or late series is skipped; if all fail, a hardcoded
   fallback list is used. Trade placement is simulated/paper — no real
   money moves, no trading keys.
 
