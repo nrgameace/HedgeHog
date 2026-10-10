@@ -28,4 +28,15 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /start over/i }))
     expect(screen.getByRole('button', { name: /start/i })).toBeInTheDocument()
   })
+
+  it('goes back to the home page when the hedgehog logo is pressed on the questionnaire', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: /^start$/i }))
+    expect(screen.getByRole('button', { name: /analyze/i })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /back to home/i }))
+
+    expect(screen.getByRole('heading', { level: 1, name: 'hedgehog' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /analyze/i })).not.toBeInTheDocument()
+  })
 })

@@ -30,7 +30,7 @@ function App() {
 
   return (
     <>
-      <PageHeader />
+      <PageHeader onHome={startOver} />
       <main>
         {screen === 'questionnaire' && <QuestionnairePage submit={submitQuestionnaire} onComplete={showResults} />}
         {screen === 'results' && report && <ResultsPage report={report} onStartOver={startOver} />}

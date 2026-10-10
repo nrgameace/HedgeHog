@@ -7,6 +7,12 @@ describe('LandingPage', () => {
   beforeEach(() => vi.spyOn(window, 'scrollTo').mockImplementation(() => {}))
   afterEach(() => vi.restoreAllMocks())
 
+  it('uses no em dashes in its copy', () => {
+    const { container } = render(<LandingPage onStart={() => {}} />)
+
+    expect(container.textContent).not.toContain('\u2014')
+  })
+
   it('introduces hedgehog with its logo', () => {
     render(<LandingPage onStart={() => {}} />)
 
