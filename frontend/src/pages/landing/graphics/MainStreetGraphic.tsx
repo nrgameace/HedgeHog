@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import hedgehogLogo from '../assets/hedgehog-logo.png'
+import hedgehogLogo from '../../../assets/hedgehog-logo.png'
 
 type Storefront = { x: number, width: number, height: number, tone: string }
 

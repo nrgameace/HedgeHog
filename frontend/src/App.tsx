@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import './App.css'
 import { submitQuestionnaire } from './api/client'
+import PageHeader from './components/PageHeader'
 import LandingPage from './pages/landing/LandingPage'
 import QuestionnairePage from './pages/QuestionnairePage'
 import ResultsPage from './pages/ResultsPage'
@@ -28,10 +29,13 @@ function App() {
   if (screen === 'home') return <LandingPage onStart={() => setScreen('questionnaire')} />
 
   return (
-    <main>
-      {screen === 'questionnaire' && <QuestionnairePage submit={submitQuestionnaire} onComplete={showResults} />}
-      {screen === 'results' && report && <ResultsPage report={report} onStartOver={startOver} />}
-    </main>
+    <>
+      <PageHeader />
+      <main>
+        {screen === 'questionnaire' && <QuestionnairePage submit={submitQuestionnaire} onComplete={showResults} />}
+        {screen === 'results' && report && <ResultsPage report={report} onStartOver={startOver} />}
+      </main>
+    </>
   )
 }
 

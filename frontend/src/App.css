@@ -1,24 +1,88 @@
 main {
   max-width: 1040px;
   margin: 0 auto;
-  padding: 2rem 16px 4rem;
+  padding: 1rem 16px 5rem;
   box-sizing: border-box;
+}
+
+/* Shared card surface for forms, tables and charts */
+.questionnaire,
+.table-scroll,
+.chart,
+.empty-plan {
+  background: #fcf8f1;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  box-shadow: 0 18px 40px -28px rgba(83, 53, 38, 0.45);
+}
+
+.questionnaire,
+.results {
+  animation: page-rise 0.6s ease-out both;
+}
+
+/* Header */
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 20px 16px 0;
+  box-sizing: border-box;
+}
+
+.page-header__logo {
+  width: 52px;
+}
+
+.page-header__wordmark {
+  font-family: var(--hh-serif);
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-h);
 }
 
 /* Buttons */
 button {
-  padding: 10px 18px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--text-h);
+  padding: 12px 28px;
+  border: 1.5px solid var(--hh-bark);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--hh-bark);
+  font-family: var(--hh-serif);
+  font-weight: 600;
+  letter-spacing: 0.03em;
   cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+button:hover:not(:disabled) {
+  background: var(--hh-paper);
+  transform: translateY(-1px);
+}
+
+.questionnaire button {
+  align-self: flex-start;
 }
 
 button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  padding: 14px 36px;
+  border-color: var(--hh-bark);
+  background: var(--hh-bark);
+  color: var(--hh-cream);
+  box-shadow: 0 8px 20px -8px rgba(83, 53, 38, 0.55);
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--hh-cocoa);
+  border-color: var(--hh-cocoa);
+}
+
+button:focus-visible {
+  outline: 3px solid var(--hh-mustard);
+  outline-offset: 3px;
 }
 
 button:disabled {
@@ -40,21 +104,48 @@ button:disabled {
 .questionnaire {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 26px;
+  margin-top: 16px;
+  padding: 40px clamp(20px, 5vw, 48px) 44px;
+  counter-reset: question;
+}
+
+.questionnaire h1 {
+  margin: 0;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .field label {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
   color: var(--text-h);
+  font-weight: 600;
+}
+
+.field label::before {
+  counter-increment: question;
+  content: counter(question);
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font: 600 0.85rem/1 var(--hh-serif);
+  transform: translateY(-1px);
 }
 
 .questionnaire > p {
-  margin-top: -12px;
+  margin-top: -14px;
+  font-size: 1.05rem;
 }
 
 textarea {
@@ -64,11 +155,40 @@ textarea {
 
 textarea,
 input:not([type]) {
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--text-h);
+  padding: 12px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  background: #fffdf9;
+  color: var(--hh-ink);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+textarea::placeholder,
+input::placeholder {
+  color: var(--hh-tan);
+}
+
+textarea:focus,
+input:not([type]):focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-bg);
+}
+
+input[type='file'] {
+  color: var(--text);
+}
+
+input[type='file']::file-selector-button {
+  margin-right: 14px;
+  padding: 10px 20px;
+  border: 1.5px dashed var(--hh-cocoa);
+  border-radius: 999px;
+  background: var(--hh-paper);
+  color: var(--hh-bark);
+  font-family: var(--hh-serif);
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .field-error {
@@ -78,8 +198,14 @@ input:not([type]) {
 }
 
 /* Results */
+.results h1 {
+  margin-top: 16px;
+}
+
 .trades td.risk strong {
   display: block;
+  font-family: var(--hh-serif);
+  font-size: 1.05rem;
   color: var(--text-h);
 }
 
@@ -89,18 +215,18 @@ input:not([type]) {
 
 .empty-plan {
   margin-bottom: 24px;
-  padding: 16px;
-  border-radius: 12px;
-  background: var(--surface);
+  padding: 24px;
 }
 
 .note {
   font-size: 0.9em;
-  margin-bottom: 12px;
+  font-style: italic;
+  margin-bottom: 16px;
 }
 
 .table-scroll {
   overflow-x: auto;
+  padding: 8px 12px;
 }
 
 table {
@@ -112,9 +238,17 @@ table {
 th,
 td {
   text-align: left;
-  padding: 10px 8px;
+  padding: 14px 10px;
   border-bottom: 1px solid var(--border);
   vertical-align: top;
+}
+
+thead th {
+  font-size: 0.78em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
 }
 
 th {
@@ -125,11 +259,12 @@ th {
 .questionnaire,
 .home {
   max-width: 760px;
-  margin: 0 auto;
+  margin-inline: auto;
 }
 
 .trades tr.selectable {
   cursor: pointer;
+  transition: background 0.15s ease;
 }
 
 .trades tbody tr.selectable:hover {
@@ -143,6 +278,7 @@ th {
 
 .trades tr.selected {
   background: var(--accent-bg);
+  box-shadow: inset 4px 0 0 var(--accent);
 }
 
 .trades tfoot th,
@@ -155,5 +291,18 @@ th {
 
 .chart {
   margin: 0 0 32px;
+  padding: 20px 12px 8px;
   font-size: 0.8em;
+}
+
+@keyframes page-rise {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .questionnaire,
+  .results {
+    animation: none;
+  }
 }

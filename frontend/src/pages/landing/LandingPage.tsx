@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 
-import hedgehogLogo from './assets/hedgehog-logo.png'
+import hedgehogLogo from '../../assets/hedgehog-logo.png'
 import FallingLeaves from './graphics/FallingLeaves'
 import MainStreetGraphic from './graphics/MainStreetGraphic'
 import RainyDayGraphic from './graphics/RainyDayGraphic'
