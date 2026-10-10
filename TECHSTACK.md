@@ -35,6 +35,14 @@ sees the same ground truth. Project context/flow lives in
 - **Hosting**: Akamai
 
 ## Model / LLM
+- **Model**: a **Qwen** model hosted on **Akamai**, queried by the
+  backend over HTTP. This settles both the "which Akamai product" and
+  "which model provider" questions.
+- Still to confirm: exact Qwen variant, and whether Akamai exposes an
+  OpenAI-compatible chat/completions API. Both model calls return strict
+  JSON, so JSON-schema adherence needs testing early — it is the most
+  likely place a smaller model misbehaves, and the ticker-validation
+  guard exists for exactly that reason.
 - Hosted on Akamai; the backend queries it over HTTP.
 - Two sequential model calls per submission:
   1. **Trend detection** — given uploaded financials + stated risk
@@ -56,11 +64,34 @@ sees the same ground truth. Project context/flow lives in
     `KALSHI-ACCESS-TIMESTAMP` (ms), `KALSHI-ACCESS-SIGNATURE` — base64 of
     a signature over `timestamp + METHOD + path` (query string excluded),
     RSA-PSS/SHA-256 or Ed25519.
+  - **Retrieve through `GET /series`, not by paging `GET /markets`.**
+    14,942 series exist, and `/markets` without a series filter is
+    dominated by sports and 15-minute crypto markets — 6,000 pages deep
+    it had still returned zero weather or compute markets. `/series`
+    also carries two fields that make retrieval tractable:
+    - `frequency` — `daily`, `weekly`, `monthly`, `annual`, `hourly`,
+      `custom`, `one_off`. This is the horizon, straight from the API,
+      so it covers most of the `ContractWindow` mapping. Only `custom`
+      and `one_off` need per-series handling.
+    - `categories` — business-relevant ones are Economics (860),
+      Climate and Weather (422), Science and Technology (388), Companies
+      (216), Commodities (132), Financials (1008), Transportation (37).
+      Excluding Sports, Entertainment, Elections, Politics, Mentions and
+      Crypto removes ~11,700 of the 14,942 series up front.
+  - **Score relevance on series/market `title`, never on the ticker.**
+    Ticker substrings produce absurd matches: `KXGPUSDW` looks like a GPU
+    market but is "Will GBPUSD end the week above 1.3625?" (G-BP-USD);
+    `KXNFLOPOY` matches "flop" but is NFL Offensive Player of the Year;
+    `KXCHIPBURRITO` matches "chip" but is Chipotle.
+  - Filter out test series — `KXTESTB200`, `KXB200TEST`,
+    `KXB200AVGTEST` exist alongside the real ones and will have no book.
   - **Response gotchas** (all seen in live responses, 2026-10-10):
     - Prices are **strings in dollars**, e.g. `yes_ask_dollars: "0.3400"`.
-    - `status` can be `"active"`, which is not in the documented
-      enum (`unopened/paused/open/closed/settled`) — don't hardcode
-      `== "open"`.
+    - `status` values are actually `initialized`, `active` and
+      `inactive` — *none* of the documented enum
+      (`unopened/paused/open/closed/settled`). Don't hardcode
+      `== "open"`; `status=open` is accepted but does not filter as
+      documented.
     - `volume` and `liquidity` come back `null`; the populated fields are
       the fixed-point variants `volume_fp`, `volume_24h_fp`,
       `open_interest_fp`.
@@ -68,6 +99,26 @@ sees the same ground truth. Project context/flow lives in
       with degenerate books (`yes_bid "0.0000"` / `no_bid "1.0000"`).
       Pass `mve_filter=exclude` — they aren't single-factor events and
       would corrupt the sizing math.
+
+## Candidate series for the demo scenarios
+Verified present in the live `GET /series` response, 2026-10-10.
+
+**AI startup — GPU/compute pricing.** There is a whole B200 family:
+- `KXB200W` / `KXB200WS` — B200 Weekly Price
+- `KXB200MON` / `KXB200MS` — B200 Monthly Price
+- `KXB200Q` — B200 Quarterly Directional Price
+- `KXB200MAX` — B100 Yearly Directional Price
+- `KXFLOP` — Flop compute (custom)
+- `KXPPISEMI` / `PPISEMI` — Semiconductor PPI (monthly), as a fallback
+- `KXGPURULE` — GPU export restrictions (custom)
+
+**Ice cream shop — daily weather.** 122 daily weather series exist, but
+they are overwhelmingly *temperature*, not rain. Daily rain is nearly
+absent: `RAINSEA` (Seattle) is the only clean daily one, with
+`KXRAINSNYC` (custom) and `KXRAINNAPAM` (monthly) elsewhere. Daily
+temperature has broad city coverage: `KXHIGHNY`, `HIGHAUS`, `KXLOWTSFO`,
+`KXLOWMIA`, `KXLOWPHIL`, `KXLOWTSATX` and more.
+- No daily Kansas City weather series was found.
 
 ## Decisions log
 - 2026-10-10 — Frontend: Vite + React + TS over Next.js (simpler for a

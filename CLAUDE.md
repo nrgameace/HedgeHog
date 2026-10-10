@@ -18,6 +18,18 @@ not production robustness. Mock data/services where real integration
 would eat the weekend; prefer real calls (even against sandbox/paper
 endpoints) wherever feasible without costing significant time.
 
+## Demo scenarios
+Two scenarios are being built, deliberately chosen to exercise opposite
+ends of the contract-horizon range:
+1. **Ice cream shop** — short-horizon weather contracts (daily).
+2. **AI startup** — longer-horizon GPU/compute pricing contracts
+   (weekly through quarterly).
+
+Both are confirmed to have real Kalshi series behind them (verified
+2026-10-10, see TECHSTACK.md for tickers). This is the main reason
+contract windows are structural rather than assumed — the same sizing
+code has to serve a one-day hedge and a quarterly one.
+
 ## Architecture
 - **Frontend**: TypeScript + React (`frontend/`), deployed on Vercel.
 - **Backend**: FastAPI (Python) (`backend/`), deployed on Akamai.
