@@ -11,10 +11,17 @@ Setting those equal cancels the price terms, leaving `n * notional = dR`. The
 contract count therefore depends only on the revenue shortfall, never on the
 price - price decides what the hedge *costs*, not how large it is.
 
+`dR` has to be measured over the window the contract actually resolves on.
+Kalshi horizons range from a single day to a quarter or longer, so revenue is
+carried as a daily rate and scaled by each contract's own window here rather
+than by the caller - a monthly figure paired with a daily contract would
+over-hedge thirtyfold while staying internally consistent at every step.
+
 Pure functions only: no network, no model calls, no Kalshi types.
 """
 
 from dataclasses import dataclass
+from datetime import date
 from decimal import ROUND_FLOOR, Decimal
 from enum import Enum
 
@@ -36,6 +43,27 @@ class Constraint(Enum):
 
 
 @dataclass(frozen=True)
+class ContractWindow:
+    """The span of business activity a contract's event covers, inclusive of both end days.
+
+    This is *not* Kalshi's `open_time`..`close_time`, which is when the market accepts
+    orders - a monthly series can open weeks before the period being measured. Deriving
+    the true coverage period per series belongs to the Kalshi client.
+    """
+
+    opens: date
+    settles: date
+
+    def __post_init__(self) -> None:
+        if self.settles < self.opens:
+            raise ValueError(f"window settles {self.settles} before it opens {self.opens}")
+
+    @property
+    def days(self) -> int:
+        return (self.settles - self.opens).days + 1
+
+
+@dataclass(frozen=True)
 class MarketQuote:
     """Ask-side snapshot of one Kalshi market. Prices are per contract, in dollars."""
 
@@ -44,14 +72,19 @@ class MarketQuote:
     no_ask: Decimal
     yes_ask_size: int
     no_ask_size: int
+    exposure_window: ContractWindow
     notional_value: Decimal = ONE_DOLLAR
 
 
 @dataclass(frozen=True)
 class Exposure:
-    """What the business stands to lose, as produced by the position-sizing model call."""
+    """What the business stands to lose, as produced by the position-sizing model call.
 
-    baseline_revenue: Decimal
+    Revenue is a daily rate so that one exposure can be sized against contracts of
+    differing horizons without the caller rescaling it.
+    """
+
+    daily_revenue: Decimal
     revenue_impact_pct: Decimal
     hurts_when: Side
 
@@ -64,10 +97,18 @@ class HedgePosition:
     entry_price: Decimal
     premium: Decimal
     payoff_if_hit: Decimal
+    window: ContractWindow
+    days_covered: int
+    revenue_at_risk: Decimal
     shortfall: Decimal
     ideal_contracts: Decimal
     hedge_ratio: Decimal
     binding_constraint: Constraint
+
+
+def revenue_at_risk(exposure: Exposure, window: ContractWindow) -> Decimal:
+    """The revenue exposed over one contract's resolution window."""
+    return exposure.daily_revenue * window.days
 
 
 def size_position(quote: MarketQuote, exposure: Exposure, budget: Decimal, fee_per_contract: Decimal = Decimal("0"), depth_factor: Decimal = WHOLE_BOOK) -> HedgePosition:
@@ -76,7 +117,8 @@ def size_position(quote: MarketQuote, exposure: Exposure, budget: Decimal, fee_p
 
     side = exposure.hurts_when
     ask, ask_size = _ask_side(quote, side)
-    shortfall = exposure.baseline_revenue * exposure.revenue_impact_pct
+    at_risk = revenue_at_risk(exposure, quote.exposure_window)
+    shortfall = at_risk * exposure.revenue_impact_pct
     ideal = shortfall / quote.notional_value
 
     unit_cost = ask + fee_per_contract
@@ -95,6 +137,9 @@ def size_position(quote: MarketQuote, exposure: Exposure, budget: Decimal, fee_p
         entry_price=ask,
         premium=contracts * unit_cost,
         payoff_if_hit=contracts * quote.notional_value,
+        window=quote.exposure_window,
+        days_covered=quote.exposure_window.days,
+        revenue_at_risk=at_risk,
         shortfall=shortfall,
         ideal_contracts=ideal,
         hedge_ratio=(contracts / ideal if ideal > 0 else Decimal("0")),
@@ -104,8 +149,8 @@ def size_position(quote: MarketQuote, exposure: Exposure, budget: Decimal, fee_p
 
 def _validate(quote: MarketQuote, exposure: Exposure, budget: Decimal, fee_per_contract: Decimal, depth_factor: Decimal) -> None:
     """Reject inputs that would make the sizing math meaningless rather than merely wrong."""
-    if exposure.baseline_revenue < 0:
-        raise ValueError(f"baseline_revenue must be non-negative, got {exposure.baseline_revenue}")
+    if exposure.daily_revenue < 0:
+        raise ValueError(f"daily_revenue must be non-negative, got {exposure.daily_revenue}")
     if not 0 <= exposure.revenue_impact_pct <= 1:
         raise ValueError(
             f"revenue_impact_pct must fall in [0, 1], got {exposure.revenue_impact_pct}"

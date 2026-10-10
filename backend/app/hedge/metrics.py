@@ -11,7 +11,7 @@ Pure functions only: no network, no model calls.
 from dataclasses import dataclass
 from decimal import Decimal
 
-from app.hedge.sizing import Exposure, HedgePosition
+from app.hedge.sizing import ContractWindow, Exposure, HedgePosition, revenue_at_risk
 
 PROBABILITY_TOLERANCE = Decimal("0.000001")
 DOWNSIDE_PERCENTILE = Decimal("0.05")
@@ -44,23 +44,28 @@ class HedgeComparison:
     premium: Decimal
 
 
-def two_state_scenarios(exposure: Exposure, event_probability: Decimal) -> tuple[Scenario, Scenario]:
-    """Collapse an exposure into the bad state (the risk factor bites) and the good state."""
+def two_state_scenarios(exposure: Exposure, window: ContractWindow, event_probability: Decimal) -> tuple[Scenario, Scenario]:
+    """Collapse an exposure into the bad state (the risk factor bites) and the good state.
+
+    Revenue is measured over `window`, so the scenarios are comparable with a hedge
+    sized against a contract resolving on that same window.
+    """
     if not 0 <= event_probability <= 1:
         raise ValueError(f"event_probability must fall in [0, 1], got {event_probability}")
 
-    shortfall = exposure.baseline_revenue * exposure.revenue_impact_pct
+    at_risk = revenue_at_risk(exposure, window)
+    shortfall = at_risk * exposure.revenue_impact_pct
     return (
         Scenario(
-            label="risk factor hits",
+            label=f"risk factor hits ({window.days}d to {window.settles})",
             probability=event_probability,
-            revenue=exposure.baseline_revenue - shortfall,
+            revenue=at_risk - shortfall,
             hedge_pays=True,
         ),
         Scenario(
-            label="risk factor misses",
+            label=f"risk factor misses ({window.days}d to {window.settles})",
             probability=1 - event_probability,
-            revenue=exposure.baseline_revenue,
+            revenue=at_risk,
             hedge_pays=False,
         ),
     )

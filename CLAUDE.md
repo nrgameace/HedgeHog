@@ -57,16 +57,40 @@ again; nothing is saved between visits.
   Library wired up, homepage stub ("Hedgehog" heading + "Start" link)
   built via TDD.
 - `backend/app/hedge/` — the pure math core of model call 2, TDD'd:
-  - `sizing.py` — `size_position()` turns an `Exposure` (baseline
-    revenue, revenue impact %, which side hurts) plus a `MarketQuote`
-    into a contract count, capped by budget and resting book depth, and
-    reports which constraint bound.
+  - `sizing.py` — `size_position()` turns an `Exposure` (daily revenue
+    rate, revenue impact %, which side hurts) plus a `MarketQuote` into a
+    contract count, capped by budget and resting book depth, and reports
+    which constraint bound.
   - `metrics.py` — scenario-weighted before/after stats (mean, stdev,
     worst case, 5th percentile) and `compare_hedge()` for the dashboard.
   - Both are pure: no network, no model calls, no Kalshi types. The
     central result they encode is that contract count equals the dollar
     revenue shortfall and is **independent of contract price** — price
     sets the hedge's cost, not its size.
+
+## Contract horizons
+Kalshi contracts settle over whatever window their series uses — daily,
+weekly, monthly, quarterly, or one-off event dates. The hedge math is
+only valid when the revenue shortfall is measured over **the same window
+the contract resolves on**, so:
+- `Exposure` carries a **daily revenue rate**, and `size_position()`
+  scales it by each contract's own `ContractWindow`. Pairing a monthly
+  revenue figure with a daily contract would over-hedge ~30x while
+  staying internally consistent at every step, which is why the window is
+  structural rather than a caller convention.
+- A `ContractWindow` is the span of business activity the event covers —
+  **not** Kalshi's `open_time`..`close_time`, which is only when the
+  market accepts orders and can begin weeks before the measured period.
+- Every position reports `window`, `days_covered` and `revenue_at_risk`
+  so the results page can state each leg's horizon rather than implying
+  one uniform period.
+- Portfolio construction (not yet built) has to mix horizons: a monthly
+  risk is often better hedged by a ladder of daily contracts, which pays
+  in proportion to how many bad days actually occur, than by one
+  all-or-nothing monthly contract. The tradeoff is transaction cost —
+  30 daily legs cross the spread 30 times — and the aggregate payoff of
+  many independent daily legs is binomial, so it needs no 2^k scenario
+  enumeration.
 - Not yet built: questionnaire + CSV upload UI, CSV parsing, model call 1
   (trend detection), model call 2's retrieval + LLM selection stages,
   Kalshi client, cross-factor portfolio allocation, fee schedule,
@@ -105,8 +129,12 @@ again; nothing is saved between visits.
   if real order placement is ever added.
 - Hedge budget: does the questionnaire collect it, or is it derived as a
   % of revenue? `size_position()` needs a dollar budget.
-- Hedge horizon: one month or a quarter? Drives the `close_time` filter
-  on market retrieval.
+- Hedge horizon: over what period is the owner trying to smooth revenue?
+  This bounds which contract windows are eligible, but individual legs
+  keep their own settlement windows regardless (see Contract horizons).
+- Per-series exposure windows: Kalshi does not cleanly expose the period
+  an event covers, so the client needs a per-series mapping from ticker
+  conventions to a `ContractWindow`.
 - Akamai specifics: which Akamai product(s) — App Platform, Cloud
   Compute, the LLM hosting product — and how backend deploy + model
   hosting are wired together.

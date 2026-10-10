@@ -92,6 +92,16 @@ sees the same ground truth. Project context/flow lives in
   contracts at resting book depth. On thin Kalshi markets the spread is a
   large fraction of a $1 contract, and sizing past the book makes the
   recommendation unfillable.
+- 2026-10-10 — Contract horizons are structural, not assumed. Kalshi
+  series settle daily, weekly, monthly, quarterly or on one-off event
+  dates, so `Exposure` holds a daily revenue rate and `size_position()`
+  scales it by each contract's own `ContractWindow`. A monthly revenue
+  figure paired with a daily contract over-hedges ~30x while every
+  intermediate step stays internally consistent, so the window is made
+  impossible to omit rather than left to a naming convention.
 - Not yet decided: Kalshi fee schedule. `size_position()` takes
   `fee_per_contract` as a parameter rather than embedding a formula —
   pull the live schedule into one place before the demo.
+- Not yet decided: how a `ContractWindow` is derived per Kalshi series.
+  `open_time`..`close_time` is the trading window, not the event's
+  coverage period, so it cannot be used directly.
