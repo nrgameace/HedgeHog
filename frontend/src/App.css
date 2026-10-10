@@ -1,6 +1,163 @@
 main {
-  max-width: 640px;
-  margin: 4rem auto;
-  padding: 0 1rem;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 2rem 16px 4rem;
+  box-sizing: border-box;
+}
+
+/* Buttons */
+button {
+  padding: 10px 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-h);
+  cursor: pointer;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* Home */
+.home {
   text-align: center;
+  padding-top: 4rem;
+}
+
+.home p {
+  margin-bottom: 2rem;
+}
+
+/* Questionnaire */
+.questionnaire {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.add-factor {
+  display: flex;
+  gap: 8px;
+}
+
+.add-factor input {
+  flex: 1;
+  min-width: 0;
+}
+
+.factor-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.factor-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 4px 4px 12px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--text-h);
+}
+
+.factor-list button {
+  padding: 0 8px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 1.1em;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field label {
+  color: var(--text-h);
+}
+
+input[type='number'],
+input:not([type]) {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.field a {
+  color: var(--accent);
+  font-size: 0.9em;
+}
+
+.field-error {
+  color: var(--error);
+  font-size: 0.9em;
+  margin-top: 6px;
+}
+
+/* Results */
+.concerns {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.concerns li {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.concerns strong {
+  color: var(--text-h);
+}
+
+.note {
+  font-size: 0.9em;
+  margin-bottom: 12px;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+th {
+  color: var(--text-h);
+  font-weight: 500;
+}
+
+.chart {
+  margin: 0 0 32px;
+  font-size: 0.8em;
 }

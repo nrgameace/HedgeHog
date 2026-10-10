@@ -53,11 +53,21 @@ again; nothing is saved between visits.
 - `backend/` — FastAPI app scaffolded with a `/health` endpoint, pytest
   wired up, TDD'd (test written and confirmed red before the
   implementation went green).
-- `frontend/` — Vite + React + TS scaffolded, Vitest + React Testing
-  Library wired up, homepage stub ("Hedgehog" heading + "Start" link)
-  built via TDD.
-- Not yet built: questionnaire + CSV upload UI, CSV parsing, the two
-  model calls, Kalshi client, results dashboard, Akamai deployment wiring.
+- `frontend/` — full home → questionnaire → results flow built via TDD,
+  running on **mock data** (`MOCK_API` in `frontend/src/api/client.ts`,
+  on by default). Questionnaire asks only what the flow above specifies:
+  "What factors do you believe impact your business?" (owner types
+  their own; no suggested factors) and expected monthly earnings, plus
+  an **optional** CSV upload (any shape, max 5 MB) — optional while the
+  app runs on simulated data. A realistic sample lives at
+  `frontend/public/sample-financials.csv` (24 months, seasonal shop:
+  revenue, COGS, payroll, rent, net income, cash, etc.). Results
+  show concerns, recommended bets (labelled simulated) and a Recharts
+  hedged-vs-unhedged revenue chart. Screens are React state in
+  `App.tsx` (no router), so a refresh starts over.
+- Not yet built: the backend `POST /analyze` endpoint the frontend calls
+  when mock mode is off (contract in TECHSTACK.md), CSV parsing, the two
+  model calls, Kalshi client, Akamai deployment wiring.
 
 ## Parts of the project
 - Questionnaire + CSV upload UI (frontend)
