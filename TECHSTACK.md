@@ -19,6 +19,32 @@ sees the same ground truth. Project context/flow lives in
   - Run: `cd frontend && npm run test` (or `npx vitest run`)
 - **Hosting**: Vercel
 - **Linting**: oxlint (bundled by the Vite template)
+- **Charts**: Recharts
+- **Navigation**: no router — `App.tsx` holds the current screen in
+  React state (fits the no-persistence flow; no Vercel rewrites needed)
+- **Mock vs. real backend**: `VITE_USE_MOCK_API` (default mock) and
+  `VITE_API_URL` (default `http://localhost:8000`); see
+  `frontend/.env.example`
+
+## Frontend ↔ backend contract: `POST /analyze`
+- Request: `multipart/form-data` with
+  - `answers` — JSON string, all free text (optional ones may be `""`):
+    `{"businessDescription", "customers", "location",
+    "operationalDependencies", "keyMaterials", "pastImpacts",
+    "timeOfYear", "lockedInCosts", "riskBudget"}`. None are required yet (simulated
+    data), so any may be `""`. Earnings/costs come from the CSV, not here.
+    `lockedInCosts` lists things already protected — don't hedge them.
+    `riskBudget` is free text like "$800 a month"; size total bets to it
+    (the mock reads the first amount as monthly, "a year" ÷ 12).
+  - `financials` — the uploaded CSV file, **optional** for now (any
+    columns; frontend caps it at 5 MB). Omitted when the user skips it.
+- Response: JSON matching `HedgeReport` in `frontend/src/types.ts`:
+  `{"bets": [{risk: {factor, explanation}, market, ticker,
+  side: "YES"|"NO", amountUsd (stake per trade), frequency (label),
+  tradeMonths (0=Jan), rationale, monthlyNetUsd (12 values: payouts minus
+  stakes)}], "profitSeries": [{period, expected, actual}],
+  "simulatedPeriod"}`. The frontend derives totals and variance
+  mitigation from these.
 
 ## Backend
 - **Language/framework**: Python + FastAPI
@@ -56,3 +82,20 @@ sees the same ground truth. Project context/flow lives in
 - 2026-10-10 — No login/auth, no persistence: every visit re-collects
   the questionnaire + CSV instead of storing accounts/sessions.
 - 2026-10-10 — TDD required for all code, frontend and backend.
+- 2026-10-10 — Frontend: screens in React state instead of a router;
+  Recharts for the revenue chart; mock API on by default until
+  `/analyze` exists.
+- 2026-10-10 — Financials CSV: any shape accepted, only limit is 5 MB;
+  optional until the backend exists (simulated data only for now).
+- 2026-10-10 — Questionnaire has no suggested factors: owners type in
+  whatever factors they believe impact them.
+- 2026-10-10 — Added a 9th question, the monthly risk-mitigation budget,
+  which caps total recommended bets; locked-in question reworded to give
+  examples (fixed-price contracts, fixed-rate loans, long leases).
+- 2026-10-10 — Questionnaire reworked to 8 free-text questions that find
+  dependencies (business, customers, location, day-to-day reliance,
+  key materials, past impacts, time of year, locked-in costs); expected
+  earnings dropped because the CSV covers it.
+- 2026-10-10 — North-star demo data in `demo-data/`: two fixed
+  fictional businesses (ice cream shop, AI startup) with hand-built
+  monthly CSVs and background stories. No generator, no randomness.

@@ -1,8 +1,38 @@
-import './App.css'
-import LandingPage from './pages/landing/LandingPage'
+import { useState } from 'react'
 
+import './App.css'
+import { submitQuestionnaire } from './api/client'
+import LandingPage from './pages/landing/LandingPage'
+import QuestionnairePage from './pages/QuestionnairePage'
+import ResultsPage from './pages/ResultsPage'
+import type { HedgeReport } from './types'
+
+type Screen = 'home' | 'questionnaire' | 'results'
+
+// Screens live in memory only: refreshing the page starts over, matching the no-persistence design.
 function App() {
-  return <LandingPage onStart={() => window.location.assign('/questionnaire')} />
+  const [screen, setScreen] = useState<Screen>('home')
+  const [report, setReport] = useState<HedgeReport | null>(null)
+
+  function showResults(newReport: HedgeReport) {
+    setReport(newReport)
+    setScreen('results')
+  }
+
+  function startOver() {
+    setReport(null)
+    setScreen('home')
+  }
+
+  // The landing page is full-bleed, so it renders outside the narrow <main> column.
+  if (screen === 'home') return <LandingPage onStart={() => setScreen('questionnaire')} />
+
+  return (
+    <main>
+      {screen === 'questionnaire' && <QuestionnairePage submit={submitQuestionnaire} onComplete={showResults} />}
+      {screen === 'results' && report && <ResultsPage report={report} onStartOver={startOver} />}
+    </main>
+  )
 }
 
 export default App
