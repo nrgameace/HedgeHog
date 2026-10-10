@@ -49,10 +49,17 @@ STRIKE_FALLS_WITH_YES = {"less", "less_or_equal"}
 
 
 class FactorDirection(Enum):
-    """Which way the factor has to move for the business to be hurt."""
+    """Which way the factor has to move for the business to be hurt.
+
+    `BOTH` exists because real exposures are not always monotonic. An ice cream
+    shop sells best on a warm day but loses evening traffic above 100F and pays
+    a bigger power bill, so cold and extreme heat both hurt while the middle
+    helps. Forcing that into UP or DOWN hedges one tail and ignores the other.
+    """
 
     UP = "up"
     DOWN = "down"
+    BOTH = "both"
 
 
 @dataclass(frozen=True)
@@ -88,10 +95,13 @@ Decide three things:
 1. "ticker" - the single best candidate. Prefer a market whose threshold sits \
 near where the business actually starts to hurt, and whose settlement window \
 covers the period at risk. Copy the ticker exactly from the list; never invent one.
-2. "direction" - whether this business is hurt when the underlying factor goes \
-"up" or "down". This is about the business, not the market's wording. A company \
-holding cash in treasuries is hurt when interest rates go DOWN. An ice cream \
-shop is hurt when temperature goes DOWN.
+2. "direction" - "up" if the business is hurt when the underlying factor rises, \
+"down" if it is hurt when the factor falls, or "both" if either extreme hurts \
+while the middle is fine. This is about the business, not the market's wording. \
+A company holding cash in treasuries is hurt when interest rates go DOWN. An \
+ice cream shop is "both": a cold day kills demand and a 100F day empties the \
+street and spikes the power bill, but a warm day is its best day. Use "both" \
+only when you can name the harm at each end.
 3. "impact_pct" - the share of the money at risk over that window that this \
 factor would cost, as a decimal between 0 and 1 (0.18 means 18%).
 
@@ -135,8 +145,43 @@ def derive_side(direction: FactorDirection, strike_type: str) -> Side | None:
     else:
         return None
 
+    if direction is FactorDirection.BOTH:
+        # Both tails hurt, and a threshold market *is* one tail: "above 98F" is
+        # the hot end, "below 60F" the cold end. So YES on either pays in a bad
+        # state, and covering both ends means holding one of each.
+        return Side.YES
+
     hurt_by_rise = direction is FactorDirection.UP
     return Side.YES if hurt_by_rise == yes_pays_when_factor_rises else Side.NO
+
+
+def opposite_tail(choice: MarketChoice, options: Sequence[MarketOption]) -> MarketOption | None:
+    """The second leg for a non-monotonic factor: the same exposure's other end.
+
+    Only meaningful when the direction is BOTH. Prefers a market in the same
+    series so both legs measure the same thing, and requires YES depth, since
+    that is the side a tail is bought on.
+    """
+    if choice.direction is not FactorDirection.BOTH:
+        return None
+
+    chosen_shape = choice.option.market.strike_type.strip().lower()
+    if chosen_shape in STRIKE_RISES_WITH_YES:
+        wanted = STRIKE_FALLS_WITH_YES
+    elif chosen_shape in STRIKE_FALLS_WITH_YES:
+        wanted = STRIKE_RISES_WITH_YES
+    else:
+        return None
+
+    candidates = [
+        option
+        for option in options
+        if option.market.strike_type.strip().lower() in wanted
+        and option.quote.yes_ask_size > 0
+        and option.market.ticker != choice.ticker
+    ]
+    same_series = [o for o in candidates if o.series_ticker == choice.option.series_ticker]
+    return next(iter(same_series or candidates), None)
 
 
 def _validated(reply: dict, options: Sequence[MarketOption]) -> MarketChoice | None:

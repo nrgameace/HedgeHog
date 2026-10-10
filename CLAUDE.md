@@ -125,7 +125,15 @@ again; nothing is saved between visits.
     means YES on "below 56" and NO on "above 63"), and buying the wrong
     one amplifies the risk while still reporting a perfect hedge.
     Hallucinated tickers, bad directions, implausible impacts and
-    unbuyable sides are all refused.
+    unbuyable sides are all refused. Direction can also be `BOTH`, for
+    exposures that are not monotonic: an ice cream shop is hurt by cold
+    demand *and* by 100F heat emptying the street, while a warm day is
+    its best. A threshold market is itself one tail, so `BOTH` always
+    buys YES, and `opposite_tail()` finds the other end's market to hold
+    alongside it.
+  - Event probabilities come from `implied_probability()` - a contract's
+    ask in dollars per $1 of notional *is* the market's own probability.
+    Assuming one instead makes every before/after metric fiction.
   - `vocabulary.py` — asks the model which words Kalshi would title a
     series with, then merges the validated proposal over a curated
     table, so `search.py`'s expansions are not a ceiling on which

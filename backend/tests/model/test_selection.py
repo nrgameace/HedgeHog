@@ -13,6 +13,7 @@ from app.model.selection import (
     FactorDirection,
     MarketOption,
     derive_side,
+    opposite_tail,
     select_market,
 )
 
@@ -294,3 +295,66 @@ class TestUnbuyableSide:
         prompt = json.loads(seen[0].content)["messages"][1]["content"]
 
         assert "buyable: YES" in prompt
+
+
+class TestBothTails:
+    """An ice cream shop is hurt by cold demand *and* by 100F heat, so one
+    monotonic direction cannot describe it."""
+
+    def test_both_tails_always_buys_yes_because_the_strike_picks_the_tail(self):
+        assert derive_side(FactorDirection.BOTH, "greater") is Side.YES
+        assert derive_side(FactorDirection.BOTH, "less") is Side.YES
+
+    def test_the_model_can_state_a_non_monotonic_direction(self):
+        choice = choose(reply(ticker=WARM.market.ticker, direction="both", impact_pct=0.12))
+
+        assert choice.direction is FactorDirection.BOTH
+        assert choice.side is Side.YES
+
+    def test_the_prompt_offers_both_as_an_option(self):
+        seen: list[httpx.Request] = []
+        select_market(
+            "austin weather",
+            (COLD, WARM),
+            config=CONFIG,
+            client=model_returning(
+                reply(ticker=WARM.market.ticker, direction="both", impact_pct=0.1), seen
+            ),
+        )
+        prompt = json.loads(seen[0].content)["messages"][0]["content"]
+
+        assert '"both"' in prompt
+
+
+class TestOppositeTail:
+    def test_finds_the_other_tail_for_a_non_monotonic_factor(self):
+        choice = choose(reply(ticker=WARM.market.ticker, direction="both", impact_pct=0.12))
+
+        other = opposite_tail(choice, (COLD, WARM))
+
+        assert other is not None
+        assert other.market.ticker == COLD.market.ticker
+        assert other.market.strike_type == "less"
+
+    def test_a_monotonic_factor_needs_no_second_leg(self):
+        choice = choose(reply(ticker=WARM.market.ticker, direction="up", impact_pct=0.12))
+
+        assert opposite_tail(choice, (COLD, WARM)) is None
+
+    def test_returns_none_when_the_other_tail_is_not_listed(self):
+        choice = choose(
+            reply(ticker=WARM.market.ticker, direction="both", impact_pct=0.12), options=(WARM,)
+        )
+
+        assert opposite_tail(choice, (WARM,)) is None
+
+    def test_prefers_the_same_series_for_the_second_leg(self):
+        elsewhere = option("KXHIGHAUS-26OCT10-T60", "high temp below 60?", "less")
+        choice = choose(
+            reply(ticker=WARM.market.ticker, direction="both", impact_pct=0.12),
+            options=(elsewhere, COLD, WARM),
+        )
+
+        other = opposite_tail(choice, (elsewhere, COLD, WARM))
+
+        assert other.series_ticker == choice.option.series_ticker

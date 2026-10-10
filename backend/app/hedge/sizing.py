@@ -118,6 +118,21 @@ class HedgePosition:
     binding_constraint: Constraint
 
 
+def implied_probability(quote: MarketQuote, side: Side) -> Decimal | None:
+    """The market's own probability that `side` pays, or None if it is not offered.
+
+    A contract paying `notional` is priced at `notional * P(pays)`, so the ask
+    divided by the notional *is* the probability - read off the price we would
+    actually pay, so it carries the spread rather than pretending to a mid we
+    cannot trade at. Using this instead of an assumed probability is what keeps
+    the before/after metrics honest.
+    """
+    ask, _ = _ask_side(quote, side)
+    if ask <= 0:
+        return None
+    return ask / quote.notional_value
+
+
 def revenue_at_risk(exposure: Exposure, window: ContractWindow, as_of: date) -> Decimal:
     """The revenue still exposed over a contract's window as of a given date."""
     return exposure.daily_revenue * window.remaining_days(as_of)

@@ -9,6 +9,7 @@ from app.hedge.sizing import (
     Exposure,
     MarketQuote,
     Side,
+    implied_probability,
     revenue_at_risk,
     size_position,
 )
@@ -246,3 +247,25 @@ def test_rejects_market_with_no_resting_offer():
 def test_rejects_ask_above_notional_value():
     with pytest.raises(ValueError):
         size(quote(yes_ask=Decimal("1.01")))
+
+
+class TestImpliedProbability:
+    """A contract's price in dollars per $1 of notional is the market's own probability."""
+
+    def test_the_ask_price_is_the_implied_probability(self):
+        assert implied_probability(quote(), Side.YES) == Decimal("0.30")
+        assert implied_probability(quote(), Side.NO) == Decimal("0.72")
+
+    def test_scales_by_notional_value(self):
+        market = quote(notional_value=Decimal("100"), yes_ask=Decimal("30"))
+
+        assert implied_probability(market, Side.YES) == Decimal("0.30")
+
+    def test_an_unoffered_side_has_no_implied_probability(self):
+        assert implied_probability(quote(yes_ask=Decimal("0")), Side.YES) is None
+
+    def test_the_two_sides_roughly_complement_each_other(self):
+        """Both are asks, so they sum to slightly over 1 by the spread we pay twice."""
+        total = implied_probability(quote(), Side.YES) + implied_probability(quote(), Side.NO)
+
+        assert Decimal("1") < total < Decimal("1.1")
