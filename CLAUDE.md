@@ -102,9 +102,17 @@ the contract resolves on**, so:
 - A `ContractWindow` is the span of business activity the event covers —
   **not** Kalshi's `open_time`..`close_time`, which is only when the
   market accepts orders and can begin weeks before the measured period.
-- Every position reports `window`, `days_covered` and `revenue_at_risk`
-  so the results page can state each leg's horizon rather than implying
-  one uniform period.
+- **A contract bought mid-window only hedges the remainder.**
+  `KXB200MS-26OCT` covers 1–31 October, but bought on 10 October nine of
+  those days are already spent, and sizing against all 31 over-hedges by
+  ~41%. `size_position()` and `two_state_scenarios()` both clip to
+  `ContractWindow.remaining_days(as_of)`, which defaults to today.
+  This failure mode is invisible in the metrics — an unclipped hedge
+  still reports 100% volatility reduction, because it is a perfect hedge
+  of the wrong period.
+- Every position reports `window`, `as_of`, `days_hedged` and
+  `revenue_at_risk` so the results page can state each leg's horizon
+  rather than implying one uniform period.
 - Portfolio construction (not yet built) has to mix horizons: a monthly
   risk is often better hedged by a ladder of daily contracts, which pays
   in proportion to how many bad days actually occur, than by one

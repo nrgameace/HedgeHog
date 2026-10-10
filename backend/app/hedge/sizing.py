@@ -62,6 +62,17 @@ class ContractWindow:
     def days(self) -> int:
         return (self.settles - self.opens).days + 1
 
+    def remaining_days(self, as_of: date) -> int:
+        """Days of exposure still ahead on `as_of`, counting that day itself.
+
+        A monthly contract bought mid-month only hedges the rest of the month:
+        KXB200MS-26OCT covers 1-31 October, but on 10 October nine of those days
+        are already spent and sizing against all 31 would over-hedge by ~40%.
+        """
+        if as_of > self.settles:
+            return 0
+        return (self.settles - max(self.opens, as_of)).days + 1
+
 
 @dataclass(frozen=True)
 class MarketQuote:
@@ -98,7 +109,8 @@ class HedgePosition:
     premium: Decimal
     payoff_if_hit: Decimal
     window: ContractWindow
-    days_covered: int
+    as_of: date
+    days_hedged: int
     revenue_at_risk: Decimal
     shortfall: Decimal
     ideal_contracts: Decimal
@@ -106,18 +118,23 @@ class HedgePosition:
     binding_constraint: Constraint
 
 
-def revenue_at_risk(exposure: Exposure, window: ContractWindow) -> Decimal:
-    """The revenue exposed over one contract's resolution window."""
-    return exposure.daily_revenue * window.days
+def revenue_at_risk(exposure: Exposure, window: ContractWindow, as_of: date) -> Decimal:
+    """The revenue still exposed over a contract's window as of a given date."""
+    return exposure.daily_revenue * window.remaining_days(as_of)
 
 
-def size_position(quote: MarketQuote, exposure: Exposure, budget: Decimal, fee_per_contract: Decimal = Decimal("0"), depth_factor: Decimal = WHOLE_BOOK) -> HedgePosition:
-    """Size the hedge that pays when `exposure` bites, capped by budget and resting book depth."""
+def size_position(quote: MarketQuote, exposure: Exposure, budget: Decimal, fee_per_contract: Decimal = Decimal("0"), depth_factor: Decimal = WHOLE_BOOK, as_of: date | None = None) -> HedgePosition:
+    """Size the hedge that pays when `exposure` bites, capped by budget and resting book depth.
+
+    `as_of` defaults to today so a mid-window contract is clipped to the exposure
+    that is still ahead. Pass it explicitly to keep a calculation reproducible.
+    """
+    today = as_of or date.today()
     _validate(quote, exposure, budget, fee_per_contract, depth_factor)
 
     side = exposure.hurts_when
     ask, ask_size = _ask_side(quote, side)
-    at_risk = revenue_at_risk(exposure, quote.exposure_window)
+    at_risk = revenue_at_risk(exposure, quote.exposure_window, today)
     shortfall = at_risk * exposure.revenue_impact_pct
     ideal = shortfall / quote.notional_value
 
@@ -138,7 +155,8 @@ def size_position(quote: MarketQuote, exposure: Exposure, budget: Decimal, fee_p
         premium=contracts * unit_cost,
         payoff_if_hit=contracts * quote.notional_value,
         window=quote.exposure_window,
-        days_covered=quote.exposure_window.days,
+        as_of=today,
+        days_hedged=quote.exposure_window.remaining_days(today),
         revenue_at_risk=at_risk,
         shortfall=shortfall,
         ideal_contracts=ideal,

@@ -9,6 +9,7 @@ Pure functions only: no network, no model calls.
 """
 
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 
 from app.hedge.sizing import ContractWindow, Exposure, HedgePosition, revenue_at_risk
@@ -44,26 +45,29 @@ class HedgeComparison:
     premium: Decimal
 
 
-def two_state_scenarios(exposure: Exposure, window: ContractWindow, event_probability: Decimal) -> tuple[Scenario, Scenario]:
+def two_state_scenarios(exposure: Exposure, window: ContractWindow, event_probability: Decimal, as_of: date | None = None) -> tuple[Scenario, Scenario]:
     """Collapse an exposure into the bad state (the risk factor bites) and the good state.
 
-    Revenue is measured over `window`, so the scenarios are comparable with a hedge
-    sized against a contract resolving on that same window.
+    Revenue is measured over whatever of `window` is still ahead on `as_of`, matching
+    how `size_position` clips the same window, so the scenarios and the hedge sized
+    against them describe the same exposure.
     """
     if not 0 <= event_probability <= 1:
         raise ValueError(f"event_probability must fall in [0, 1], got {event_probability}")
 
-    at_risk = revenue_at_risk(exposure, window)
+    today = as_of or date.today()
+    at_risk = revenue_at_risk(exposure, window, today)
     shortfall = at_risk * exposure.revenue_impact_pct
+    horizon = f"{window.remaining_days(today)}d to {window.settles}"
     return (
         Scenario(
-            label=f"risk factor hits ({window.days}d to {window.settles})",
+            label=f"risk factor hits ({horizon})",
             probability=event_probability,
             revenue=at_risk - shortfall,
             hedge_pays=True,
         ),
         Scenario(
-            label=f"risk factor misses ({window.days}d to {window.settles})",
+            label=f"risk factor misses ({horizon})",
             probability=1 - event_probability,
             revenue=at_risk,
             hedge_pays=False,

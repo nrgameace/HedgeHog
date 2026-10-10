@@ -165,6 +165,12 @@ temperature has broad city coverage: `KXHIGHNY`, `HIGHAUS`, `KXLOWTSFO`,
   cities. Daily US high-temp series include `KXHIGHNY` (NYC) and
   `HIGHAUS` (Austin); low-temp adds `KXLOWTSFO`, `KXLOWMIA`,
   `KXLOWPHIL`, `KXLOWTSATX`.
+- 2026-10-10 — Exposure is clipped to the days of a contract window that
+  are still ahead, via `ContractWindow.remaining_days(as_of)`, with
+  `as_of` defaulting to today. Verified live: `KXB200MS-26OCT` on
+  10 October sizes 10,560 contracts clipped versus 14,880 unclipped.
+  Both report 100% volatility reduction, so the error is invisible in
+  the output — it is a perfect hedge of a period that has partly gone.
 - Not yet decided: Kalshi fee schedule. `size_position()` takes
   `fee_per_contract` as a parameter rather than embedding a formula —
   pull the live schedule into one place before the demo.
