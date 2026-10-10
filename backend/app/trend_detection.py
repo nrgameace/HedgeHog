@@ -1,9 +1,9 @@
-import json
 from dataclasses import dataclass
 
 import httpx
 
 from app.akamai_client import AkamaiConfig, chat_complete
+from app.model_json import parse_model_json
 from app.prompts import build_trend_detection_messages
 from app.questionnaire import QuestionnaireAnswers
 
@@ -17,18 +17,6 @@ class HedgeableCategory:
 
 class TrendDetectionError(Exception):
     pass
-
-
-def _strip_markdown_fence(text: str) -> str:
-    stripped = text.strip()
-    if stripped.startswith("```") and stripped.endswith("```"):
-        lines = stripped.splitlines()
-        if lines[0].startswith("```"):
-            lines = lines[1:]
-        if lines and lines[-1].startswith("```"):
-            lines = lines[:-1]
-        return "\n".join(lines).strip()
-    return stripped
 
 
 def _parse_category(item: object) -> HedgeableCategory:
@@ -46,10 +34,9 @@ def _parse_category(item: object) -> HedgeableCategory:
 def detect_hedgeable_categories(answers: QuestionnaireAnswers, financials: list[dict[str, str]], *, config: AkamaiConfig | None = None, client: httpx.Client | None = None) -> list[HedgeableCategory]:
     messages = build_trend_detection_messages(answers, financials)
     reply = chat_complete(messages, temperature=0.2, config=config, client=client)
-    unfenced = _strip_markdown_fence(reply)
     try:
-        parsed = json.loads(unfenced)
-    except json.JSONDecodeError as exc:
+        parsed = parse_model_json(reply)
+    except ValueError as exc:
         raise TrendDetectionError(f"model reply was not valid JSON: {reply}") from exc
 
     categories = parsed.get("hedgeable_categories") if isinstance(parsed, dict) else None
