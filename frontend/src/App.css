@@ -11,9 +11,10 @@ main {
 .chart,
 .empty-plan {
   background: #fcf8f1;
-  border: 1px solid var(--border);
+  border: 2px solid var(--hh-bark);
   border-radius: 0;
-  box-shadow: 0 18px 40px -28px rgba(83, 53, 38, 0.45);
+  /* Layered border: a solid offset copy of the frame, no blur. */
+  box-shadow: 6px 6px 0 var(--hh-bark);
 }
 
 .questionnaire,
@@ -268,7 +269,7 @@ thead th {
 
 th {
   color: var(--text-h);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .questionnaire,
