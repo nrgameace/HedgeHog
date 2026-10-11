@@ -111,6 +111,27 @@ describe('QuestionnairePage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/status 500/)
   })
 
+  it('swaps the form for the spinning hedgehog loading screen while the analysis runs', () => {
+    renderPage(vi.fn(() => new Promise<HedgeReport>(() => {})))
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /analyze/i }))
+
+    expect(screen.getByRole('status')).toHaveAccessibleName('Loading')
+    expect(screen.queryByRole('heading', { name: /about your business/i })).not.toBeInTheDocument()
+  })
+
+  it('brings the form back with the answers kept if the analysis fails', async () => {
+    renderPage(vi.fn().mockRejectedValue(new Error('The analysis failed (status 500).')))
+    answerRequired()
+
+    fireEvent.click(screen.getByRole('button', { name: /analyze/i }))
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/where is your business located/i)).toHaveValue('Austin, TX')
+  })
+
   it('asks for the CSV before submitting when the real backend needs it', () => {
     const { submit } = renderPage(undefined, undefined, true)
 

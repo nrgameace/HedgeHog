@@ -322,3 +322,100 @@ th {
     animation: none;
   }
 }
+
+/* Loading screen: a curled-up hedgehog spinning like a loading wheel */
+.questionnaire[hidden] {
+  display: none;
+}
+
+.loading-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 60vh;
+}
+
+.loading-hedgehog-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.loading-hedgehog {
+  width: clamp(140px, 28vw, 190px);
+  height: auto;
+  animation: hedgehog-spin 1.4s linear infinite;
+}
+
+.loading-hedgehog__shadow {
+  width: 60%;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--hh-bark);
+  opacity: 0.12;
+  animation: hedgehog-shadow 1.4s ease-in-out infinite;
+}
+
+.loading-text {
+  font-family: var(--hh-serif);
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.loading-dots span {
+  opacity: 0;
+}
+
+.loading-dots span:nth-child(1) {
+  animation: loading-dot-1 1.6s steps(1, end) infinite;
+}
+
+.loading-dots span:nth-child(2) {
+  animation: loading-dot-2 1.6s steps(1, end) infinite;
+}
+
+.loading-dots span:nth-child(3) {
+  animation: loading-dot-3 1.6s steps(1, end) infinite;
+}
+
+@keyframes hedgehog-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes hedgehog-shadow {
+  50% {
+    transform: scaleX(0.85);
+    opacity: 0.08;
+  }
+}
+
+@keyframes loading-dot-1 {
+  0% { opacity: 0; }
+  25%, 100% { opacity: 1; }
+}
+
+@keyframes loading-dot-2 {
+  0%, 25% { opacity: 0; }
+  50%, 100% { opacity: 1; }
+}
+
+@keyframes loading-dot-3 {
+  0%, 50% { opacity: 0; }
+  75%, 100% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-hedgehog {
+    animation-duration: 4s;
+  }
+
+  .loading-hedgehog__shadow {
+    animation: none;
+  }
+}
