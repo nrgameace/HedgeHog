@@ -17,9 +17,9 @@ sees the same ground truth. Project context/flow lives in
     `@testing-library/jest-dom` import — it's the one that gives
     TypeScript the matcher types under Vitest 5.x)
   - Run: `cd frontend && npm run test` (or `npx vitest run`)
-- **Hosting**: Vercel, configured by `vercel.json` at the repo root
-  (`cd frontend && npm ci`, `cd frontend && npm run build`, output
-  `frontend/dist`). Env vars on Vercel: `VITE_API_URL` (deployed backend)
+- **Hosting**: Vercel, configured by `frontend/vercel.json`. The Vercel
+  project's Root Directory is `frontend`, so commands run there:
+  `npm ci`, `npm run build`, output `dist`. Env vars on Vercel: `VITE_API_URL` (deployed backend)
   and `VITE_USE_MOCK_API=true` until the backend is live.
 - **Linting**: oxlint (bundled by the Vite template)
 - **Charts**: Recharts

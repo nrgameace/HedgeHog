@@ -116,12 +116,15 @@ Wired end to end: the frontend calls the real backend by default, and
   Build, test and demo against these instead of inventing data. Backend
   tests read these CSVs directly; frontend tests mirror the demo answers
   in `frontend/src/test/answers.ts`.
-- `vercel.json` (repo root) builds `frontend/` and serves `frontend/dist`.
+- `frontend/vercel.json` configures the Vercel build. The Vercel project's
+  Root Directory is `frontend`, so its commands run inside `frontend/`
+  (`npm ci`, `npm run build`, output `dist`) — no `cd frontend`.
   On Vercel set `VITE_API_URL` to the deployed backend, add the Vercel
   domain to the backend's `ALLOWED_ORIGINS`, and set
   `VITE_USE_MOCK_API=true` until the backend is deployed.
-- Not yet built: Akamai deployment wiring for the backend. Model output varies run to
-  run (temperature 0.2), so the exact bets differ between demos.
+- Not yet built: Akamai deployment wiring for the backend. Both model calls
+  run at temperature 0 with a fixed seed, but the shared vLLM server can
+  still vary slightly between runs.
 
 ## Parts of the project
 - Questionnaire + CSV upload UI (frontend)
