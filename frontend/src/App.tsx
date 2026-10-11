@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import './App.css'
 import { MOCK_API, submitQuestionnaire } from './api/client'
@@ -14,6 +14,9 @@ type Screen = 'home' | 'questionnaire' | 'results'
 function App() {
   const [screen, setScreen] = useState<Screen>('home')
   const [report, setReport] = useState<HedgeReport | null>(null)
+
+  // Each screen opens at its top, not wherever the previous one was scrolled to.
+  useEffect(() => { window.scrollTo(0, 0) }, [screen])
 
   function showResults(newReport: HedgeReport) {
     setReport(newReport)
