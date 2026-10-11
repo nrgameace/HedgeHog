@@ -96,3 +96,8 @@ def test_position_sizing_prompt_treats_candidates_as_recurring_series():
 def test_position_sizing_prompt_requires_every_factor_and_leaves_budget_to_the_backend():
     assert "Plan every factor" in POSITION_SIZING_SYSTEM_PROMPT
     assert "never leave out a factor to save money" in POSITION_SIZING_SYSTEM_PROMPT
+
+
+def test_prompts_keep_explanations_short():
+    assert "at most 25 words" in TREND_DETECTION_SYSTEM_PROMPT
+    assert "at most 25 words" in POSITION_SIZING_SYSTEM_PROMPT

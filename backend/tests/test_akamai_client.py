@@ -3,7 +3,7 @@ import json
 import httpx
 import pytest
 
-from app.akamai_client import AkamaiApiError, AkamaiConfig, AkamaiConfigError, chat_complete
+from app.akamai_client import DEFAULT_REQUEST_TIMEOUT_SECONDS, AkamaiApiError, AkamaiConfig, AkamaiConfigError, chat_complete
 
 FAKE_CONFIG = AkamaiConfig(base_url="https://fake.test/v1", api_key="test-key-123", chat_model="hackathon-chat")
 
@@ -194,3 +194,7 @@ def test_chat_complete_raises_when_the_reply_was_cut_off():
 
     with pytest.raises(AkamaiApiError, match="cut off"):
         chat_complete([{"role": "user", "content": "hi"}], config=FAKE_CONFIG, client=client)
+
+
+def test_model_calls_allow_three_minutes_for_slow_replies():
+    assert DEFAULT_REQUEST_TIMEOUT_SECONDS == 180.0
