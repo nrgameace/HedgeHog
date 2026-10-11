@@ -47,6 +47,21 @@ describe('QuestionnairePage', () => {
     expect(screen.queryByLabelText(/earnings/i)).not.toBeInTheDocument()
   })
 
+  it('shows how many of the ten questions are answered, counting the CSV upload', () => {
+    renderPage()
+    const progress = screen.getByRole('progressbar', { name: /questions answered/i })
+    expect(progress).toHaveAttribute('aria-valuenow', '0')
+    expect(progress).toHaveAttribute('aria-valuemax', '10')
+    expect(screen.getByText('0 of 10 answered')).toBeInTheDocument()
+
+    answer(/what does your business do/i, 'Ice cream shop')
+    answer(/who are your customers/i, '   ')
+    fireEvent.change(screen.getByLabelText(/upload your financials/i), { target: { files: [csvFile] } })
+
+    expect(progress).toHaveAttribute('aria-valuenow', '2')
+    expect(screen.getByText('2 of 10 answered')).toBeInTheDocument()
+  })
+
   it('has no sample-CSV download link (demo CSVs live in demo-data/)', () => {
     renderPage()
 

@@ -8,6 +8,7 @@ import RollingHills from './graphics/RollingHills'
 import ScrollTrail from './graphics/ScrollTrail'
 import SteadyCashflowGraphic from './graphics/SteadyCashflowGraphic'
 import { BalanceIcon, NotebookIcon, TrendLensIcon } from './graphics/StepIcons'
+import LandingFaq from './LandingFaq'
 import StoryScene from './StoryScene'
 import './landing.css'
 
@@ -21,11 +22,6 @@ const STEPS = [
 
 // Scroll-driven landing page. Styles are scoped under .landing so other pages are untouched.
 function LandingPage({ onStart }: LandingPageProps) {
-  function start() {
-    window.scrollTo(0, 0)
-    onStart()
-  }
-
   return (
     <div className="landing">
       <div className="landing__backdrop" aria-hidden="true"><FallingLeaves /></div>
@@ -40,7 +36,7 @@ function LandingPage({ onStart }: LandingPageProps) {
           <p className="landing-hero__lede">
             A slow week shouldn’t put you behind on payroll. We help small and mid-sized businesses plan their margins so it doesn’t.
           </p>
-          <button type="button" className="landing-button" onClick={start}>Start</button>
+          <button type="button" className="landing-button" onClick={onStart}>Start</button>
           <p className="landing-hero__scroll-cue">Scroll to see how it works</p>
           <RollingHills />
         </header>
@@ -70,9 +66,11 @@ function LandingPage({ onStart }: LandingPageProps) {
           )}
         />
 
+        <StoryScene eyebrow="FAQ" heading="Questions you might be asking." graphic={<LandingFaq />} layout="stacked" />
+
         <StoryScene eyebrow="Who it's for" heading="For businesses exposed to the real world." graphic={<MainStreetGraphic />} layout="stacked">
           <p>A café that loses its patio crowd when it rains. A farm that relies on the weather at harvest. A delivery service that pays more every time fuel prices rise. If outside factors move your revenue, Hedgehog can help.</p>
-          <button type="button" className="landing-button" onClick={start}>Let's begin</button>
+          <button type="button" className="landing-button" onClick={onStart}>Let's begin</button>
         </StoryScene>
       </div>
 

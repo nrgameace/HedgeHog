@@ -207,6 +207,42 @@ input[type='file']::file-selector-button {
   cursor: pointer;
 }
 
+/* Questionnaire progress: sticks to the top of the screen while scrolling */
+.questionnaire-progress {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: -6px 0 0;
+  padding: 12px 0;
+  background: #fcf8f1;
+}
+
+.questionnaire-progress__track {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--hh-sand);
+  overflow: hidden;
+}
+
+.questionnaire-progress__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--hh-mustard), var(--hh-pumpkin));
+  transition: width 0.4s ease-out;
+}
+
+.questionnaire-progress__label {
+  flex: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--hh-cocoa);
+  font-variant-numeric: tabular-nums;
+}
+
 .field-error {
   color: var(--error);
   font-size: 0.9em;
@@ -303,6 +339,55 @@ th {
   border-bottom: none;
   color: var(--text-h);
   font-weight: 600;
+}
+
+/* Plain-English trade explanations */
+.trades button.explain-toggle,
+.trades button.explain-toggle:hover:not(:disabled) {
+  display: block;
+  margin-top: 10px;
+  padding: 0;
+  text-align: left;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--accent);
+  font: 600 0.85rem/1.3 var(--sans);
+  letter-spacing: 0;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  transform: none;
+}
+
+.trades button.explain-toggle:hover:not(:disabled) {
+  color: var(--hh-cocoa);
+}
+
+.trades tr.trade-explainer td {
+  padding: 4px 10px 20px;
+  background: var(--accent-bg);
+}
+
+.trade-explainer dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px 24px;
+  margin: 0;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: #fffdf9;
+}
+
+.trade-explainer dt {
+  margin-bottom: 4px;
+  font-family: var(--hh-serif);
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.trade-explainer dd {
+  margin: 0;
+  line-height: 1.55;
 }
 
 .chart {

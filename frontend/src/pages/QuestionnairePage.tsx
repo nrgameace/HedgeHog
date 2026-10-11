@@ -31,6 +31,21 @@ type QuestionnairePageProps = {
   requireFinancials: boolean
 }
 
+type ProgressProps = { answered: number; total: number }
+
+// Sticky bar so ten questions feel short: fills as answers (and the CSV) come in.
+function QuestionnaireProgress({ answered, total }: ProgressProps) {
+  const label = `${answered} of ${total} answered`
+  return (
+    <div className="questionnaire-progress" role="progressbar" aria-label="Questions answered" aria-valuemin={0} aria-valuemax={total} aria-valuenow={answered} aria-valuetext={label}>
+      <div className="questionnaire-progress__track">
+        <div className="questionnaire-progress__fill" style={{ width: `${(answered / total) * 100}%` }} />
+      </div>
+      <span className="questionnaire-progress__label">{label}</span>
+    </div>
+  )
+}
+
 type TextQuestionProps = { question: Question; value: string; onChange: (value: string) => void }
 
 function TextQuestion({ question, value, onChange }: TextQuestionProps) {
@@ -49,6 +64,7 @@ function QuestionnairePage({ submit, onComplete, requireFinancials }: Questionna
   const [fileError, setFileError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const answeredCount = QUESTIONS.filter((question) => answers[question.id].trim()).length + (file ? 1 : 0)
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -71,6 +87,7 @@ function QuestionnairePage({ submit, onComplete, requireFinancials }: Questionna
     <form className="questionnaire" onSubmit={handleSubmit} noValidate>
       <h1>About your business</h1>
       <p>Tell us how your business works so we can find what's worth protecting.</p>
+      <QuestionnaireProgress answered={answeredCount} total={QUESTIONS.length + 1} />
 
       {QUESTIONS.map((question) => (
         <TextQuestion

@@ -30,6 +30,26 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: /start/i })).toBeInTheDocument()
   })
 
+  it('opens every screen at the top of the page', async () => {
+    // Some browsers' scrollTo returns a value; the effect must not hand that back to React as a cleanup.
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockReturnValue({} as never)
+    render(<App />)
+    scrollTo.mockClear()
+
+    fireEvent.click(screen.getByRole('button', { name: /^start$/i }))
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 0)
+    scrollTo.mockClear()
+
+    fireEvent.click(screen.getByRole('button', { name: /analyze/i }))
+    await screen.findByRole('heading', { name: /your hedging plan/i })
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 0)
+    scrollTo.mockClear()
+
+    fireEvent.click(screen.getByRole('button', { name: /start over/i }))
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 0)
+    scrollTo.mockRestore()
+  })
+
   it('goes back to the home page when the hedgehog logo is pressed on the questionnaire', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: /^start$/i }))
