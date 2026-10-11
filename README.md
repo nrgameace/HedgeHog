@@ -26,7 +26,7 @@ Hedgehog turns the outside forces that move a small business's revenue — weath
 
 ## The problem
 
-A rainy Saturday empties the patio. A spike in fuel prices eats into every delivery. Small businesses live or die by factors they can see coming but can't control — and have no practical way to protect themselves against.
+A rainy Saturday empties the patio. A spike in fuel prices eats into every delivery. Small businesses live or die by factors they can see coming but can't control, and have no practical way to protect themselves against.
 
 ## The idea
 
