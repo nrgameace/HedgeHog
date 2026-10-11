@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DEFAULT_REQUEST_TIMEOUT_SECONDS = 60.0
+FIXED_SEED = 0
 
 
 class AkamaiConfigError(Exception):
@@ -37,14 +38,21 @@ class AkamaiConfig:
         return cls(**values)
 
 
-def chat_complete(messages: list[dict[str, str]], *, temperature: float = 0.2, config: AkamaiConfig | None = None, client: httpx.Client | None = None) -> str:
+def _request_body(model: str, messages: list[dict[str, str]], temperature: float, response_schema: dict | None) -> dict:
+    body = {"model": model, "messages": messages, "temperature": temperature, "seed": FIXED_SEED}
+    if response_schema is not None:
+        body["response_format"] = {"type": "json_schema", "json_schema": {"name": "response", "schema": response_schema, "strict": True}}
+    return body
+
+
+def chat_complete(messages: list[dict[str, str]], *, temperature: float = 0.0, response_schema: dict | None = None, config: AkamaiConfig | None = None, client: httpx.Client | None = None) -> str:
     config = config or AkamaiConfig.from_env()
     owns_client = client is None
     client = client or httpx.Client(timeout=DEFAULT_REQUEST_TIMEOUT_SECONDS)
     try:
         url = f"{config.base_url}/chat/completions"
         headers = {"Authorization": f"Bearer {config.api_key}"}
-        body = {"model": config.chat_model, "messages": messages, "temperature": temperature}
+        body = _request_body(config.chat_model, messages, temperature, response_schema)
         try:
             response = client.post(url, headers=headers, json=body)
         except httpx.HTTPError as exc:
