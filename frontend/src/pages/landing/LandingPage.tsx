@@ -14,9 +14,9 @@ import './landing.css'
 type LandingPageProps = { onStart: () => void }
 
 const STEPS = [
-  { Icon: NotebookIcon, title: 'Tell us about your business', body: 'Share what moves your sales, like weather, fuel and ingredients, and upload your recent financials.' },
-  { Icon: TrendLensIcon, title: 'See what you can hedge', body: 'We spot the outside trends that are actually putting your revenue at risk right now.' },
-  { Icon: BalanceIcon, title: 'Get a balanced plan', body: 'We suggest small, sized positions on Kalshi that pay off when a rough patch hits, keeping your cash flow even.' },
+  { Icon: NotebookIcon, title: 'Tell us about your business', body: 'Let us know what affects your sales, such as weather, fuel prices or ingredient costs, and upload your recent financials.' },
+  { Icon: TrendLensIcon, title: 'See what you can hedge', body: 'We identify the outside factors that pose the biggest risk to your revenue right now.' },
+  { Icon: BalanceIcon, title: 'Get a balanced plan', body: 'We recommend small positions on Kalshi, sized to your business, that pay out when a slow stretch hits and help keep your cash flow steady.' },
 ]
 
 // Scroll-driven landing page. Styles are scoped under .landing so other pages are untouched.
@@ -35,27 +35,27 @@ function LandingPage({ onStart }: LandingPageProps) {
           <div className="landing-hero__logo-wrap">
             <img className="landing-hero__logo" src={hedgehogLogo} alt="hedgehog logo" />
           </div>
-          <h1>hedgehog</h1>
+          <h1>Hedgehog</h1>
           <p className="landing-hero__tagline">Steady ground for growing businesses.</p>
           <p className="landing-hero__lede">
-            We help small and mid-sized businesses balance their cash flow, so a rainy week or a jump in gas prices never decides how your month turns out.
+            A slow week shouldn’t put you behind on payroll. We help small and mid-sized businesses plan their margins so it doesn’t.
           </p>
           <button type="button" className="landing-button" onClick={start}>Start</button>
           <p className="landing-hero__scroll-cue">Scroll to see how it works</p>
           <RollingHills />
         </header>
 
-        <StoryScene eyebrow="The challenge" heading="Some things are out of your hands." graphic={<RainyDayGraphic />}>
-          <p>A rainy Saturday empties the patio. A spike in fuel prices eats into every delivery. You built your business with care. The weather and the markets shouldn't get the final say.</p>
+        <StoryScene eyebrow="The challenge" heading="Business doesn’t always go to plan." graphic={<RainyDayGraphic />}>
+          <p>A rainy Saturday empties the patio. A spike in fuel prices raises the cost of every delivery. Neither is your fault, and both still cut into your cash flow.</p>
         </StoryScene>
 
-        <StoryScene eyebrow="The idea" heading="So we help you even things out." graphic={<SteadyCashflowGraphic />} layout="reversed">
-          <p>Hedgehog finds the outside forces that move your revenue and pairs each one with a small, offsetting position. When a tough day comes, your hedge helps cover it. When the sun is out, you do what you do best.</p>
+        <StoryScene eyebrow="The idea" heading="We help you even things out." graphic={<SteadyCashflowGraphic />} layout="reversed">
+          <p>Hedgehog identifies the outside factors that affect your revenue and sets up a small hedge for each one. If one of them causes a slow day, the hedge pays out to help cover the shortfall. It works like insurance: a small, predictable cost in exchange for protection when you need it.</p>
         </StoryScene>
 
         <StoryScene
           eyebrow="How it works"
-          heading="Simple, from start to finish."
+          heading="A few minutes to set up, and a plan built around your business."
           layout="stacked"
           graphic={(
             <ol className="landing-steps">
@@ -68,12 +68,10 @@ function LandingPage({ onStart }: LandingPageProps) {
               ))}
             </ol>
           )}
-        >
-          <p>A few minutes of your time, and a plan built around the business you actually run.</p>
-        </StoryScene>
+        />
 
-        <StoryScene eyebrow="Who it's for" heading="Built for businesses like yours." graphic={<MainStreetGraphic />} layout="stacked">
-          <p>From the corner café to the family farm, hedgehog helps you plan ahead with confidence, season after season.</p>
+        <StoryScene eyebrow="Who it's for" heading="For businesses exposed to the real world." graphic={<MainStreetGraphic />} layout="stacked">
+          <p>A café that loses its patio crowd when it rains. A farm that relies on the weather at harvest. A delivery service that pays more every time fuel prices rise. If outside factors move your revenue, Hedgehog can help.</p>
           <button type="button" className="landing-button" onClick={start}>Let's begin</button>
         </StoryScene>
       </div>

@@ -13,10 +13,32 @@ describe('LandingPage', () => {
     expect(container.textContent).not.toContain('\u2014')
   })
 
+  it('uses the new landing page copy, with each line shown once', () => {
+    const { container } = render(<LandingPage onStart={() => {}} />)
+    const copy = [
+      'A slow week shouldn’t put you behind on payroll. We help small and mid-sized businesses plan their margins so it doesn’t.',
+      'Business doesn’t always go to plan.',
+      'A rainy Saturday empties the patio. A spike in fuel prices raises the cost of every delivery. Neither is your fault, and both still cut into your cash flow.',
+      'We help you even things out.',
+      'Hedgehog identifies the outside factors that affect your revenue and sets up a small hedge for each one. If one of them causes a slow day, the hedge pays out to help cover the shortfall. It works like insurance: a small, predictable cost in exchange for protection when you need it.',
+      'A few minutes to set up, and a plan built around your business.',
+      'Let us know what affects your sales, such as weather, fuel prices or ingredient costs, and upload your recent financials.',
+      'We identify the outside factors that pose the biggest risk to your revenue right now.',
+      'We recommend small positions on Kalshi, sized to your business, that pay out when a slow stretch hits and help keep your cash flow steady.',
+      'For businesses exposed to the real world.',
+      'A café that loses its patio crowd when it rains. A farm that relies on the weather at harvest. A delivery service that pays more every time fuel prices rise. If outside factors move your revenue, Hedgehog can help.',
+    ]
+
+    for (const line of copy) expect(screen.getAllByText(line)).toHaveLength(1)
+    for (const old of ['Some things are out of your hands.', 'Simple, from start to finish.', 'Built for businesses like yours.']) {
+      expect(container.textContent).not.toContain(old)
+    }
+  })
+
   it('introduces hedgehog with its logo', () => {
     render(<LandingPage onStart={() => {}} />)
 
-    expect(screen.getByRole('heading', { level: 1, name: 'hedgehog' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Hedgehog' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: /hedgehog logo/i })).toBeInTheDocument()
   })
 

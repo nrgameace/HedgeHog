@@ -36,7 +36,7 @@ describe('App', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /back to home/i }))
 
-    expect(screen.getByRole('heading', { level: 1, name: 'hedgehog' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Hedgehog' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /analyze/i })).not.toBeInTheDocument()
   })
 })

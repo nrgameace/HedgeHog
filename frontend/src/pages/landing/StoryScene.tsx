@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 
 import { useRevealOnScroll } from './useRevealOnScroll'
 
-type StorySceneProps = { eyebrow: string, heading: string, graphic: ReactNode, children: ReactNode, layout?: 'side' | 'reversed' | 'stacked' }
+type StorySceneProps = { eyebrow: string, heading: string, graphic: ReactNode, children?: ReactNode, layout?: 'side' | 'reversed' | 'stacked' }
 
 // One scroll "chapter": its text and graphic fade/slide in the first time it enters view.
 function StoryScene({ eyebrow, heading, graphic, children, layout = 'side' }: StorySceneProps) {
