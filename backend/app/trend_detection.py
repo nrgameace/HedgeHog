@@ -9,11 +9,14 @@ from app.prompts import build_trend_detection_messages
 from app.questionnaire import QuestionnaireAnswers
 
 
-# Raised from 20 and 10. A bar of 20 is barely a filter - it admits anything the
-# model is 80% unsure of - and ten factors spreads a small risk budget so thin
-# that each hedge covers almost nothing. The strongest few, hedged properly,
-# beat a long list hedged nominally.
-MIN_CATEGORY_CONFIDENCE = 55
+# Raised from 20. A bar of 20 is barely a filter - it admits anything the model
+# is 80% unsure of - and ten factors spread a small risk budget so thin that each
+# hedge covers almost nothing. The strongest few, hedged properly, beat a long
+# list hedged nominally.
+#
+# At 90 only the model's near-certain calls survive. On the ice cream demo that
+# is rainfall alone: its other factors scored 85, 70 and 65 and are all cut.
+MIN_CATEGORY_CONFIDENCE = 90
 MAX_CATEGORIES = 5
 TEXT_FIELDS = ("category", "label", "reasoning")
 

@@ -33,15 +33,15 @@ def test_keeps_categories_at_the_confidence_threshold(monkeypatch):
     assert [category.category for category in _detect_with_items(monkeypatch, low, edge)] == ["heat"]
 
 
-def test_minimum_confidence_keeps_only_the_model_s_stronger_calls():
+def test_minimum_confidence_keeps_only_the_model_s_near_certain_calls():
     """Raised from 20: that bar admitted anything the model was 80% unsure of."""
-    assert MIN_CATEGORY_CONFIDENCE == 55
+    assert MIN_CATEGORY_CONFIDENCE == 90
 
 
 def test_sorts_by_confidence_highest_first(monkeypatch):
-    items = [{**RAIN, "category": "gas", "confidence": 60}, RAIN, {**RAIN, "category": "rates", "confidence": 80}]
+    items = [{**RAIN, "category": "gas", "confidence": 92}, RAIN, {**RAIN, "category": "rates", "confidence": 97}]
 
-    assert [category.category for category in _detect_with_items(monkeypatch, *items)] == ["rain", "rates", "gas"]
+    assert [category.category for category in _detect_with_items(monkeypatch, *items)] == ["rates", "gas", "rain"]
 
 
 def test_dedupes_slugs_keeping_the_most_confident(monkeypatch):
