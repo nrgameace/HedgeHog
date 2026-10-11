@@ -3,7 +3,8 @@ import { twoScoopsReport } from './twoScoopsReport'
 
 // Set VITE_USE_MOCK_API=true to show the simulated Two Scoops results instead of calling the backend.
 export const MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true'
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+// Same-site by default: Vercel routes /api to the backend, and the Vite dev server proxies it to localhost:8000.
+const API_URL = import.meta.env.VITE_API_URL ?? '/api'
 
 // The analysis couldn't run at all (backend unreachable, no API key set up, or the model service failed),
 // as opposed to a problem with what was entered. The page offers sample results instead.
