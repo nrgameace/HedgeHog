@@ -9,7 +9,8 @@ main {
 .questionnaire,
 .table-scroll,
 .chart,
-.empty-plan {
+.empty-plan,
+.unhedged ul {
   background: #fcf8f1;
   border: 2px solid var(--hh-bark);
   border-radius: 0;
@@ -207,6 +208,42 @@ input[type='file']::file-selector-button {
   cursor: pointer;
 }
 
+/* Questionnaire progress: sticks to the top of the screen while scrolling */
+.questionnaire-progress {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: -6px 0 0;
+  padding: 12px 0;
+  background: #fcf8f1;
+}
+
+.questionnaire-progress__track {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--hh-sand);
+  overflow: hidden;
+}
+
+.questionnaire-progress__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--hh-mustard), var(--hh-pumpkin));
+  transition: width 0.4s ease-out;
+}
+
+.questionnaire-progress__label {
+  flex: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--hh-cocoa);
+  font-variant-numeric: tabular-nums;
+}
+
 .field-error {
   color: var(--error);
   font-size: 0.9em;
@@ -305,6 +342,55 @@ th {
   font-weight: 600;
 }
 
+/* Plain-English trade explanations */
+.trades button.explain-toggle,
+.trades button.explain-toggle:hover:not(:disabled) {
+  display: block;
+  margin-top: 10px;
+  padding: 0;
+  text-align: left;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--accent);
+  font: 600 0.85rem/1.3 var(--sans);
+  letter-spacing: 0;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  transform: none;
+}
+
+.trades button.explain-toggle:hover:not(:disabled) {
+  color: var(--hh-cocoa);
+}
+
+.trades tr.trade-explainer td {
+  padding: 4px 10px 20px;
+  background: var(--accent-bg);
+}
+
+.trade-explainer dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px 24px;
+  margin: 0;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: #fffdf9;
+}
+
+.trade-explainer dt {
+  margin-bottom: 4px;
+  font-family: var(--hh-serif);
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.trade-explainer dd {
+  margin: 0;
+  line-height: 1.55;
+}
+
 .chart {
   margin: 0 0 32px;
   padding: 20px 12px 8px;
@@ -319,6 +405,131 @@ th {
 @media (prefers-reduced-motion: reduce) {
   .questionnaire,
   .results {
+    animation: none;
+  }
+}
+
+.unhedged ul {
+  list-style: none;
+  margin: 0 0 24px;
+  padding: 8px 24px;
+}
+
+.unhedged li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 0;
+}
+
+.unhedged li + li {
+  border-top: 1px solid var(--border);
+}
+
+.unhedged strong {
+  font-family: var(--hh-serif);
+  font-size: 1.05rem;
+  color: var(--text-h);
+}
+
+.unhedged-reason {
+  font-size: 0.9em;
+  font-style: italic;
+}
+
+/* Loading screen: a curled-up hedgehog spinning like a loading wheel */
+.questionnaire[hidden] {
+  display: none;
+}
+
+.loading-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 60vh;
+}
+
+.loading-hedgehog-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.loading-hedgehog {
+  width: clamp(140px, 28vw, 190px);
+  height: auto;
+  animation: hedgehog-spin 1.4s linear infinite;
+}
+
+.loading-hedgehog__shadow {
+  width: 60%;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--hh-bark);
+  opacity: 0.12;
+  animation: hedgehog-shadow 1.4s ease-in-out infinite;
+}
+
+.loading-text {
+  font-family: var(--hh-serif);
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.loading-dots span {
+  opacity: 0;
+}
+
+.loading-dots span:nth-child(1) {
+  animation: loading-dot-1 1.6s steps(1, end) infinite;
+}
+
+.loading-dots span:nth-child(2) {
+  animation: loading-dot-2 1.6s steps(1, end) infinite;
+}
+
+.loading-dots span:nth-child(3) {
+  animation: loading-dot-3 1.6s steps(1, end) infinite;
+}
+
+@keyframes hedgehog-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes hedgehog-shadow {
+  50% {
+    transform: scaleX(0.85);
+    opacity: 0.08;
+  }
+}
+
+@keyframes loading-dot-1 {
+  0% { opacity: 0; }
+  25%, 100% { opacity: 1; }
+}
+
+@keyframes loading-dot-2 {
+  0%, 25% { opacity: 0; }
+  50%, 100% { opacity: 1; }
+}
+
+@keyframes loading-dot-3 {
+  0%, 50% { opacity: 0; }
+  75%, 100% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-hedgehog {
+    animation-duration: 4s;
+  }
+
+  .loading-hedgehog__shadow {
     animation: none;
   }
 }

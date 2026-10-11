@@ -28,12 +28,12 @@ class FinancialHistoryError(Exception):
     pass
 
 
-def _find_column(fieldnames: list[str], candidates: tuple[str, ...]) -> str | None:
+def find_column(fieldnames: list[str], candidates: tuple[str, ...]) -> str | None:
     by_lowercase = {name.strip().lower(): name for name in fieldnames}
     return next((by_lowercase[candidate] for candidate in candidates if candidate in by_lowercase), None)
 
 
-def _parse_month(text: str) -> tuple[int, int] | None:
+def parse_month(text: str) -> tuple[int, int] | None:
     if match := _YEAR_FIRST_PATTERN.match(text or ""):
         year, month = int(match.group(1)), int(match.group(2))
     elif match := _US_DATE_PATTERN.match(text or ""):
@@ -43,7 +43,7 @@ def _parse_month(text: str) -> tuple[int, int] | None:
     return (year, month - 1) if 1 <= month <= 12 else None
 
 
-def _parse_amount(text: str) -> float | None:
+def parse_amount(text: str) -> float | None:
     cleaned = re.sub(r"[$,\s]", "", text or "")
     if cleaned.startswith("(") and cleaned.endswith(")"):
         cleaned = f"-{cleaned[1:-1]}"
@@ -54,27 +54,27 @@ def _parse_amount(text: str) -> float | None:
     return value if math.isfinite(value) else None
 
 
-def _required_columns(rows: list[dict[str, str]]) -> tuple[str, str]:
+def required_columns(rows: list[dict[str, str]]) -> tuple[str, str]:
     if not rows:
         raise FinancialHistoryError("The financials CSV is empty.")
     fieldnames = list(rows[0].keys())
-    month_column = _find_column(fieldnames, MONTH_COLUMNS)
+    month_column = find_column(fieldnames, MONTH_COLUMNS)
     if month_column is None:
         raise FinancialHistoryError("The financials CSV needs a month column (month, date or period).")
-    profit_column = _find_column(fieldnames, PROFIT_COLUMNS)
+    profit_column = find_column(fieldnames, PROFIT_COLUMNS)
     if profit_column is None:
         raise FinancialHistoryError("The financials CSV needs a profit column (operating_income, net_income, profit or gross_profit).")
     return month_column, profit_column
 
 
 def _profit_by_year(rows: list[dict[str, str]]) -> dict[int, dict[int, float]]:
-    month_column, profit_column = _required_columns(rows)
-    months = [_parse_month(row[month_column]) for row in rows]
+    month_column, profit_column = required_columns(rows)
+    months = [parse_month(row[month_column]) for row in rows]
     if all(month is None for month in months):
         raise FinancialHistoryError(f"Couldn't read the dates in column '{month_column}'; use YYYY-MM (for example 2024-05).")
     by_year: dict[int, dict[int, float]] = {}
     for month, row in zip(months, rows):
-        profit = _parse_amount(row[profit_column])
+        profit = parse_amount(row[profit_column])
         if month is not None and profit is not None:
             by_year.setdefault(month[0], {})[month[1]] = profit
     return by_year
@@ -113,12 +113,12 @@ def monthly_notes(rows: list[dict[str, str]], year: int) -> dict[int, str]:
     if not rows:
         return {}
     fieldnames = list(rows[0].keys())
-    month_column, notes_column = _find_column(fieldnames, MONTH_COLUMNS), _find_column(fieldnames, ("notes",))
+    month_column, notes_column = find_column(fieldnames, MONTH_COLUMNS), find_column(fieldnames, ("notes",))
     if month_column is None or notes_column is None:
         return {}
     notes = {}
     for row in rows:
-        month = _parse_month(row[month_column])
+        month = parse_month(row[month_column])
         if month is not None and month[0] == year and row[notes_column].strip():
             notes[month[1]] = row[notes_column].strip()
     return notes

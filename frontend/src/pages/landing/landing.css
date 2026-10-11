@@ -243,7 +243,8 @@
 .landing .hh-rainy__scoop { fill: var(--hh-pumpkin); }
 
 /* Cash flow graphic */
-.landing .hh-cashflow__card { fill: var(--hh-paper); }
+.landing .hh-cashflow__card { fill: var(--hh-paper); stroke: var(--hh-bark); stroke-width: 1.5; }
+.landing .hh-cashflow__card-shadow { fill: var(--hh-bark); }
 .landing .hh-cashflow__grid { stroke: var(--hh-sand); stroke-width: 1.5; }
 .landing .hh-cashflow__line { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .landing .hh-cashflow__line--unhedged { stroke: var(--hh-tan); stroke-width: 3; }
@@ -264,13 +265,17 @@
   padding: 0;
 }
 
-.landing-steps__item {
-  padding: 28px 22px;
+.landing-steps__item,
+.landing-faq__item {
   border-radius: 0;
   background: var(--hh-paper);
   border: 2px solid var(--hh-bark);
   /* Layered border: a solid offset copy of the frame, no blur. */
   box-shadow: 6px 6px 0 var(--hh-bark);
+}
+
+.landing-steps__item {
+  padding: 28px 22px;
 }
 
 .landing-steps__item h3 {
@@ -291,6 +296,59 @@
   stroke-width: 2.5;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* FAQ accordion */
+.landing-faq {
+  display: grid;
+  gap: 20px;
+  max-width: 720px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.landing-faq__item summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 22px;
+  font: 600 1.15rem/1.3 var(--hh-serif);
+  color: var(--hh-bark);
+  cursor: pointer;
+  list-style: none;
+}
+
+.landing-faq__item summary::-webkit-details-marker {
+  display: none;
+}
+
+.landing-faq__item summary::after {
+  content: '+';
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(194, 119, 63, 0.14);
+  color: var(--hh-pumpkin);
+  font: 600 1.1rem/1 var(--hh-serif);
+  transition: transform 0.2s ease;
+}
+
+.landing-faq__item[open] summary::after {
+  transform: rotate(45deg);
+}
+
+.landing-faq__item summary:focus-visible {
+  outline: 3px solid var(--hh-mustard);
+  outline-offset: 2px;
+}
+
+.landing-faq__item p {
+  padding: 0 22px 20px;
+  line-height: 1.65;
 }
 
 /* Falling leaves */
