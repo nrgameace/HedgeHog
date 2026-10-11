@@ -42,10 +42,17 @@ def test_fetch_defaults_missing_subtitle_to_empty():
     assert fetch_open_markets("KXCPI", _respond_with([market]))[0].subtitle == ""
 
 
-def test_fetch_filters_extreme_prices():
+def test_fetch_keeps_cheap_tails_and_drops_near_certain_ones():
+    """A 1c contract is 100:1 tail insurance and must survive; a 99c one transfers
+    almost no risk however much is spent on it."""
     markets = fetch_open_markets("KXRAINAUSM", _respond_with([_market("A", "0.0100"), _market("B", "0.9900"), _market("C", "0.0300"), _market("D", "0.9700")]))
 
-    assert [market.ticker for market in markets] == ["C", "D"]
+    assert [market.ticker for market in markets] == ["A", "C", "D"]
+
+
+def test_fetch_drops_a_zero_price_market():
+    """Nothing is offered at zero, so there is nothing to buy."""
+    assert fetch_open_markets("KXRAINAUSM", _respond_with([_market("A", "0.0000")])) == []
 
 
 def test_fetch_caps_at_five_per_series():

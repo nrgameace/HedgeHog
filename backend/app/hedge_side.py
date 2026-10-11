@@ -26,6 +26,14 @@ STRIKE_FALLS_WITH_YES = frozenset({"less", "less_or_equal"})
 
 DIRECTIONS = frozenset({"up", "down", "both"})
 
+# Strike shapes that cannot express a directional exposure at all. A band pays
+# only inside a narrow window: YES on "94-95 degrees" pays on a pleasant Austin
+# day, which is an ice cream shop's best day, and NO pays on everything outside
+# it - cold days and 105-degree days alike. Neither says "I am hurt above 100".
+# So a band is not a rough approximation of a tail, it is the wrong instrument,
+# and no choice of side redeems it.
+BAND_STRIKE_TYPES = frozenset({"between"})
+
 
 def normalise_direction(value: object) -> str | None:
     """`"up"`, `"down"` or `"both"`, or None when the model said something else."""
@@ -64,3 +72,14 @@ def resolved_side(direction: object, strike_type: str, stated_side: str) -> str:
     if normalised is None:
         return stated_side
     return derive_side(normalised, strike_type) or stated_side
+
+
+def can_hedge_direction(strike_type: str) -> bool:
+    """Whether this strike shape can express "hurt when the factor moves one way".
+
+    Unknown shapes pass: `KXFEDDECISION` markets are `custom` ("will the Fed hike
+    25bps?") and are perfectly directional, just not thresholds, so the model's
+    own reading of them is the best available. Bands are rejected outright
+    because they are known to be the wrong shape rather than merely unreadable.
+    """
+    return (strike_type or "").strip().lower() not in BAND_STRIKE_TYPES
