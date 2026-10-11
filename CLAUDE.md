@@ -20,6 +20,8 @@ endpoints) wherever feasible without costing significant time.
 
 ## Architecture
 - **Frontend**: TypeScript + React (`frontend/`), deployed on Vercel.
+- **Deployment**: one Vercel project with two services (root `vercel.json`):
+  `frontend` (Vite) public at `/`, `backend` (FastAPI) public at `/api/*`.
 - **Backend**: FastAPI (Python) (`backend/`), deployed on Akamai.
 - **LLM/model inference**: hosted on Akamai, called by the backend.
 - **Kalshi API**: backend calls Kalshi's real API for live market data.
@@ -54,8 +56,9 @@ again; nothing is saved between visits.
 
 ## Current state
 Wired end to end: the frontend calls the real backend by default, and
-`POST /analyze` returns the full `HedgeReport` the results page renders.
-- `backend/` — FastAPI, all TDD'd. `/analyze` takes `answers` JSON + a
+`POST /api/analyze` returns the full `HedgeReport` the results page renders.
+- `backend/` — FastAPI, all TDD'd. Every route is under `/api`
+  (`/api/analyze`, `/api/health`). `/api/analyze` takes `answers` JSON + a
   **required** `financials` CSV (400 with a readable `detail` if it's
   missing or unusable). `app/pipeline.py` runs, in order:
   1. `financial_history.py` — finds the month column (`month`/`date`/
@@ -88,7 +91,8 @@ Wired end to end: the frontend calls the real backend by default, and
      reason, shown on the results page under "Risks without a Kalshi market".
   Both model calls are JSON-schema enforced (`response_format`), run at
   temperature 0 with seed 0, request 4096 output tokens (the server's
-  default cap of 512 truncated replies) and allow 180 s per call.
+  default cap of 512 truncated replies) and allow 140 s per call, so both
+  fit in Vercel's 300 s function limit.
   5. `risk_budget.py` + `backtest.py` — stakes are scaled so no month
      exceeds the budget; monthly net = `round(stake / price)` in hit
      months minus the stake in trade months (NO price = 1 − YES price).
@@ -98,7 +102,8 @@ Wired end to end: the frontend calls the real backend by default, and
   `backend/.env.example` is the template. CORS allows `ALLOWED_ORIGINS`
   (default `http://localhost:5173`).
 - `frontend/` — home → questionnaire → results, TDD'd. Calls the real
-  `/analyze` by default; `VITE_USE_MOCK_API=true` switches to the
+  `/api/analyze` on the same site by default (the Vite dev server proxies
+  `/api` to `localhost:8000`); `VITE_USE_MOCK_API=true` switches to the
   simulated Two Scoops Creamery report (`frontend/src/api/twoScoopsReport.ts`),
   kept for offline demos and tests. The questionnaire asks the 9 free-text
   questions (none required); the CSV upload is required unless mock mode
@@ -116,13 +121,16 @@ Wired end to end: the frontend calls the real backend by default, and
   Build, test and demo against these instead of inventing data. Backend
   tests read these CSVs directly; frontend tests mirror the demo answers
   in `frontend/src/test/answers.ts`.
-- `frontend/vercel.json` configures the Vercel build. The Vercel project's
-  Root Directory is `frontend`, so its commands run inside `frontend/`
-  (`npm ci`, `npm run build`, output `dist`) — no `cd frontend`.
-  On Vercel set `VITE_API_URL` to the deployed backend, add the Vercel
-  domain to the backend's `ALLOWED_ORIGINS`, and set
-  `VITE_USE_MOCK_API=true` until the backend is deployed.
-- Not yet built: Akamai deployment wiring for the backend. Both model calls
+- `vercel.json` (repo root) deploys both apps as Vercel **services**:
+  `frontend` (root `frontend/`, Vite) serves `/`; `backend` (root
+  `backend/`, FastAPI, entrypoint `app/main.py`, `maxDuration` 300 s)
+  serves `/api/*`. No bindings: the browser calls `/api` directly, and the
+  backend only calls Akamai and Kalshi. The Vercel project's Root
+  Directory must be the repo root. Set `AKAMAI_API_BASE_URL`,
+  `AKAMAI_API_KEY` and `AKAMAI_CHAT_MODEL` in Vercel's env vars. The
+  site and API share one domain, so CORS only matters for local dev.
+  Uploads are capped at 4 MB (Vercel rejects request bodies over 4.5 MB).
+- Both model calls
   run at temperature 0 with a fixed seed, but the shared vLLM server can
   still vary slightly between runs.
 

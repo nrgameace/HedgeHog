@@ -196,5 +196,5 @@ def test_chat_complete_raises_when_the_reply_was_cut_off():
         chat_complete([{"role": "user", "content": "hi"}], config=FAKE_CONFIG, client=client)
 
 
-def test_model_calls_allow_three_minutes_for_slow_replies():
-    assert DEFAULT_REQUEST_TIMEOUT_SECONDS == 180.0
+def test_both_model_calls_fit_in_a_five_minute_serverless_function():
+    assert DEFAULT_REQUEST_TIMEOUT_SECONDS == 140.0
