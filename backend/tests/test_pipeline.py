@@ -29,7 +29,7 @@ def fake_steps(monkeypatch):
         return [RAIN]
 
     monkeypatch.setattr("app.pipeline.detect_hedgeable_categories", lambda answers, rows: CATEGORIES)
-    monkeypatch.setattr("app.pipeline.load_candidate_markets", lambda: MARKETS)
+    monkeypatch.setattr("app.pipeline.load_candidate_markets", lambda series: MARKETS)
     monkeypatch.setattr("app.pipeline.plan_positions", fake_plan)
     return calls
 

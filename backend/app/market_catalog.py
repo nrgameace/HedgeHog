@@ -1,4 +1,6 @@
+import re
 from concurrent.futures import ThreadPoolExecutor, wait
+from dataclasses import dataclass
 
 import httpx
 
@@ -7,11 +9,39 @@ from app.kalshi_client import KalshiApiError, KalshiMarket, fetch_open_markets
 KALSHI_REQUEST_TIMEOUT_SECONDS = 5.0
 KALSHI_DEADLINE_SECONDS = 6.0
 
-SERIES_TICKERS = (
-    "KXRAINAUSM", "KXRAINNYCM", "KXRAINCHIM", "KXRAINLAXM", "KXRAINMIAM", "KXRAINSFOM", "KXRAINSEAM",
-    "KXHIGHAUS", "KXHIGHNY", "KXHIGHCHI", "KXHIGHLAX", "KXHIGHMIA",
-    "KXAAAGASM", "KXWTI", "KXCPI", "KXEGGS", "KXFED", "KXFEDDECISION", "KXU3", "KXPAYROLLS", "KXGDP",
+MARKET_FAMILIES = ("rain", "heat", "gas", "oil", "inflation", "food_prices", "interest_rates", "jobs", "economy", "none")
+CITY_WEATHER_FAMILIES = {"rain", "heat"}
+
+
+@dataclass(frozen=True)
+class SeriesInfo:
+    ticker: str
+    family: str
+    city: str | None = None
+
+
+SERIES = (
+    SeriesInfo("KXRAINAUSM", "rain", "austin"), SeriesInfo("KXRAINNYCM", "rain", "nyc"), SeriesInfo("KXRAINCHIM", "rain", "chicago"),
+    SeriesInfo("KXRAINLAXM", "rain", "los_angeles"), SeriesInfo("KXRAINMIAM", "rain", "miami"), SeriesInfo("KXRAINSFOM", "rain", "san_francisco"),
+    SeriesInfo("KXRAINSEAM", "rain", "seattle"),
+    SeriesInfo("KXHIGHAUS", "heat", "austin"), SeriesInfo("KXHIGHNY", "heat", "nyc"), SeriesInfo("KXHIGHCHI", "heat", "chicago"),
+    SeriesInfo("KXHIGHLAX", "heat", "los_angeles"), SeriesInfo("KXHIGHMIA", "heat", "miami"),
+    SeriesInfo("KXAAAGASM", "gas"), SeriesInfo("KXWTI", "oil"), SeriesInfo("KXCPI", "inflation"), SeriesInfo("KXEGGS", "food_prices"),
+    SeriesInfo("KXFED", "interest_rates"), SeriesInfo("KXFEDDECISION", "interest_rates"),
+    SeriesInfo("KXU3", "jobs"), SeriesInfo("KXPAYROLLS", "jobs"), SeriesInfo("KXGDP", "economy"),
 )
+
+CITY_ALIASES = {
+    "austin": ("austin",),
+    "nyc": ("new york", "nyc", "manhattan", "brooklyn"),
+    "chicago": ("chicago",),
+    "los_angeles": ("los angeles", "la"),
+    "miami": ("miami",),
+    "san_francisco": ("san francisco", "sf", "bay area"),
+    "seattle": ("seattle",),
+}
+
+_SERIES_BY_TICKER = {series.ticker: series for series in SERIES}
 
 # MOCK DATA: used only when Kalshi's live API returns nothing, so the demo never breaks.
 FALLBACK_MARKETS = [
@@ -39,6 +69,25 @@ FALLBACK_MARKETS = [
 ]
 
 
+def match_city(location: str) -> str | None:
+    found = []
+    for city, aliases in CITY_ALIASES.items():
+        for alias in aliases:
+            match = re.search(rf"\b{re.escape(alias)}\b", location, re.IGNORECASE)
+            if match:
+                found.append((match.start(), city))
+    return min(found)[1] if found else None
+
+
+def series_for(families: set[str], city: str | None) -> list[str]:
+    return [series.ticker for series in SERIES if series.family in families and (series.family not in CITY_WEATHER_FAMILIES or series.city == city)]
+
+
+def family_of(ticker: str) -> str | None:
+    series = _SERIES_BY_TICKER.get(ticker.split("-")[0])
+    return series.family if series else None
+
+
 def _fetch_or_empty(series_ticker: str, client: httpx.Client) -> list[KalshiMarket]:
     try:
         return fetch_open_markets(series_ticker, client)
@@ -46,19 +95,25 @@ def _fetch_or_empty(series_ticker: str, client: httpx.Client) -> list[KalshiMark
         return []
 
 
-def _fetch_all_series(client: httpx.Client, deadline_seconds: float) -> list[KalshiMarket]:
-    executor = ThreadPoolExecutor(max_workers=len(SERIES_TICKERS))
-    futures = [executor.submit(_fetch_or_empty, series_ticker, client) for series_ticker in SERIES_TICKERS]
+def _fetch_series(series_tickers: list[str], client: httpx.Client, deadline_seconds: float) -> list[KalshiMarket]:
+    executor = ThreadPoolExecutor(max_workers=len(series_tickers))
+    futures = [executor.submit(_fetch_or_empty, series_ticker, client) for series_ticker in series_tickers]
     finished, _ = wait(futures, timeout=deadline_seconds)
     executor.shutdown(wait=False, cancel_futures=True)
     return [market for future in futures if future in finished for market in future.result()]
 
 
-def load_candidate_markets(client: httpx.Client | None = None, deadline_seconds: float = KALSHI_DEADLINE_SECONDS) -> list[KalshiMarket]:
+def _fallback_for(series_tickers: list[str]) -> list[KalshiMarket]:
+    return [market for market in FALLBACK_MARKETS if market.ticker.split("-")[0] in series_tickers]
+
+
+def load_candidate_markets(series_tickers: list[str], client: httpx.Client | None = None, deadline_seconds: float = KALSHI_DEADLINE_SECONDS) -> list[KalshiMarket]:
+    if not series_tickers:
+        return []
     owns_client = client is None
     client = client or httpx.Client(timeout=KALSHI_REQUEST_TIMEOUT_SECONDS)
     try:
-        return _fetch_all_series(client, deadline_seconds) or FALLBACK_MARKETS
+        return _fetch_series(series_tickers, client, deadline_seconds) or _fallback_for(series_tickers)
     finally:
         if owns_client:
             client.close()
