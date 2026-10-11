@@ -5,6 +5,8 @@ import httpx
 
 from app.akamai_client import AkamaiConfig, chat_complete
 from app.financial_history import ProfitHistory
+from app.hedge_side import DIRECTIONS, can_hedge_direction, resolved_side
+from app.hit_months import credible_hit_months
 from app.kalshi_client import KalshiMarket
 from app.market_catalog import family_of
 from app.model_json import parse_model_json
@@ -49,7 +51,13 @@ class PositionSizingError(Exception):
 
 
 def candidates_by_category(categories: list[HedgeableCategory], markets: list[KalshiMarket]) -> dict[str, list[KalshiMarket]]:
-    return {category.category: [market for market in markets if family_of(market.ticker) == category.market_family] for category in categories}
+    """Markets each factor may be hedged with: right family, and a usable strike shape.
+
+    Band markets are withheld rather than offered and corrected later, because
+    there is no side of a band that hedges a directional risk - see hedge_side.
+    """
+    hedgeable = [market for market in markets if can_hedge_direction(market.strike_type)]
+    return {category.category: [market for market in hedgeable if family_of(market.ticker) == category.market_family] for category in categories}
 
 
 def _plan_schema(markets: list[KalshiMarket]) -> dict:
@@ -57,6 +65,7 @@ def _plan_schema(markets: list[KalshiMarket]) -> dict:
         "type": "object",
         "properties": {
             "ticker": {"enum": [market.ticker for market in markets] + [NO_MARKET_TICKER]},
+            "direction": {"enum": sorted(DIRECTIONS)},
             "side": {"enum": list(SIDES)},
             "amountUsd": {"type": "integer", "minimum": 1},
             "frequency": {"type": "string"},
@@ -65,7 +74,7 @@ def _plan_schema(markets: list[KalshiMarket]) -> dict:
             "riskExplanation": {"type": "string"},
             "rationale": {"type": "string"},
         },
-        "required": ["ticker", "side", "amountUsd", "frequency", "tradeMonths", "hitMonths", "riskExplanation", "rationale"],
+        "required": ["ticker", "direction", "side", "amountUsd", "frequency", "tradeMonths", "hitMonths", "riskExplanation", "rationale"],
         "additionalProperties": False,
     }
 
@@ -88,16 +97,23 @@ def _valid_amount(value: object) -> int | None:
     return max(round(value), 1)
 
 
-def _parse_bet(item: object, category: str, tickers: set[str]) -> PlannedBet | None:
+def _parse_bet(item: object, category: str, markets: dict[str, KalshiMarket], history: ProfitHistory, notes: dict[int, str]) -> PlannedBet | None:
     if not isinstance(item, dict) or not all(isinstance(item.get(field), str) and item[field].strip() for field in TEXT_FIELDS):
         return None
     amount, trade_months = _valid_amount(item.get("amountUsd")), _valid_months(item.get("tradeMonths"))
-    if item["ticker"] not in tickers or item["side"] not in SIDES or amount is None or not trade_months:
+    if item["ticker"] not in markets or item["side"] not in SIDES or amount is None or not trade_months:
         return None
-    hit_months = [month for month in _valid_months(item.get("hitMonths")) if month in trade_months]
+    claimed = [month for month in _valid_months(item.get("hitMonths")) if month in trade_months]
     return PlannedBet(
-        category=category, ticker=item["ticker"], side=item["side"], amount_usd=amount, frequency=item["frequency"].strip(),
-        trade_months=trade_months, hit_months=hit_months, risk_explanation=item["riskExplanation"].strip(), rationale=item["rationale"].strip(),
+        category=category, ticker=item["ticker"],
+        # Recomputed from the stated direction where the strike shape allows it, so a
+        # backwards side cannot quietly turn the hedge into a doubled-down bet.
+        side=resolved_side(item.get("direction"), markets[item["ticker"]].strike_type, item["side"]),
+        amount_usd=amount, frequency=item["frequency"].strip(), trade_months=trade_months,
+        # Only months the business's own records corroborate, so the model cannot
+        # mark its own backtest.
+        hit_months=credible_hit_months(claimed, history, notes),
+        risk_explanation=item["riskExplanation"].strip(), rationale=item["rationale"].strip(),
     )
 
 
@@ -112,10 +128,11 @@ def _plans_from_reply(reply: str) -> dict:
     return plans
 
 
-def _collect(plans: dict, sized: list[HedgeableCategory], candidates: dict[str, list[KalshiMarket]]) -> SizingResult:
+def _collect(plans: dict, sized: list[HedgeableCategory], candidates: dict[str, list[KalshiMarket]], history: ProfitHistory, notes: dict[int, str]) -> SizingResult:
     result, owner_of_ticker = SizingResult(bets=[], unhedged=[]), {}
     for category in sized:
-        bet = _parse_bet(plans.get(category.category), category.category, {market.ticker for market in candidates[category.category]})
+        by_ticker = {market.ticker: market for market in candidates[category.category]}
+        bet = _parse_bet(plans.get(category.category), category.category, by_ticker, history, notes)
         if bet is None:
             result.unhedged.append(UnhedgedRisk(category=category.category, reason="no_fit"))
         elif bet.ticker in owner_of_ticker:
@@ -133,4 +150,4 @@ def plan_positions(answers: QuestionnaireAnswers, categories: list[HedgeableCate
     sized_candidates = {category.category: candidates[category.category] for category in sized}
     messages = build_position_sizing_messages(answers, sized, history, notes, sized_candidates)
     reply = chat_complete(messages, response_schema=position_sizing_schema(sized_candidates), config=config, client=client)
-    return _collect(_plans_from_reply(reply), sized, sized_candidates)
+    return _collect(_plans_from_reply(reply), sized, sized_candidates, history, notes)

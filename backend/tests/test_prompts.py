@@ -77,7 +77,7 @@ def test_build_position_sizing_messages_includes_simulated_year_and_notes():
     user_content = _position_sizing_user_content()
 
     assert "2024" in user_content
-    assert "May: expected 1000 / actual 1000 — Rainiest May in years: patio empty most weekends" in user_content
+    assert "May: expected 1000 / actual 400 — Rainiest May in years: patio empty most weekends" in user_content
     assert "Jan: expected 1000 / actual 1000\n" in user_content
 
 

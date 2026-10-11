@@ -12,6 +12,7 @@ REASON_TEXTS = {
     "no_city_market": "Kalshi only lists weather markets for Austin, New York, Chicago, Los Angeles, Miami, San Francisco and Seattle.",
     "no_fit": "None of the open Kalshi markets fit this risk closely enough.",
     "duplicate": "Already covered by the {label} trade.",
+    "driver_flat": "Your own figures show this cost hasn't moved recently, so there's nothing to smooth out.",
 }
 
 
