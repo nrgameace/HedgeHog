@@ -1,7 +1,10 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 
+import { AnalysisUnavailableError } from '../api/client'
+import { twoScoopsReport } from '../api/twoScoopsReport'
 import LoadingScreen from '../components/LoadingScreen'
 import { validateFinancialsFile } from '../csv/validateFinancialsFile'
+import { TWO_SCOOPS_ANSWERS, twoScoopsFinancialsFile } from '../demo/twoScoopsDemo'
 import type { HedgeReport, QuestionnaireAnswers } from '../types'
 
 type Question = { id: keyof QuestionnaireAnswers; label: string; example: string; multiline?: boolean }
@@ -65,7 +68,30 @@ function QuestionnairePage({ submit, onComplete, requireFinancials }: Questionna
   const [fileError, setFileError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [canShowSample, setCanShowSample] = useState(false)
+  const [demoFileAttached, setDemoFileAttached] = useState(false)
+  const fileInput = useRef<HTMLInputElement>(null)
+  const errorMessage = useRef<HTMLParagraphElement>(null)
+
+  // The error (and the sample-results offer) sit below every question, so bring them into view.
+  useEffect(() => {
+    if (submitError) errorMessage.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
+  }, [submitError])
   const answeredCount = QUESTIONS.filter((question) => answers[question.id].trim()).length + (file ? 1 : 0)
+
+  function fillDemo() {
+    const demoFile = twoScoopsFinancialsFile()
+    setAnswers(TWO_SCOOPS_ANSWERS)
+    setFile(demoFile)
+    setFileError(null)
+    setDemoFileAttached(true)
+    // Show the file in the browser's own picker too, where supported (not in jsdom).
+    if (fileInput.current && typeof DataTransfer !== 'undefined') {
+      const transfer = new DataTransfer()
+      transfer.items.add(demoFile)
+      fileInput.current.files = transfer.files
+    }
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -74,12 +100,14 @@ function QuestionnairePage({ submit, onComplete, requireFinancials }: Questionna
     const uploadError = validateFinancialsFile(file, requireFinancials)
     setFileError(uploadError)
     setSubmitError(null)
+    setCanShowSample(false)
     if (uploadError) return
     setIsSubmitting(true)
     try {
       onComplete(await submit(trimmed, file))
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Something went wrong. Please try again.')
+      setCanShowSample(error instanceof AnalysisUnavailableError)
       setIsSubmitting(false)
     }
   }
@@ -91,6 +119,7 @@ function QuestionnairePage({ submit, onComplete, requireFinancials }: Questionna
       <form className="questionnaire" onSubmit={handleSubmit} noValidate hidden={isSubmitting}>
         <h1>About your business</h1>
         <p>Tell us how your business works so we can find what's worth protecting.</p>
+        <button type="button" className="demo-fill" onClick={fillDemo}>Fill in demo data</button>
         <QuestionnaireProgress answered={answeredCount} total={QUESTIONS.length + 1} />
 
         {QUESTIONS.map((question) => (
@@ -106,11 +135,31 @@ function QuestionnairePage({ submit, onComplete, requireFinancials }: Questionna
           <label htmlFor="financials">
             Upload your financials (CSV, max 5 MB)
           </label>
-          <input id="financials" type="file" accept=".csv,text/csv" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
+          <input
+            id="financials"
+            ref={fileInput}
+            type="file"
+            accept=".csv,text/csv"
+            onChange={(event) => {
+              setFile(event.target.files?.[0] ?? null)
+              setDemoFileAttached(false)
+            }}
+          />
+          {demoFileAttached && file && (
+            <p className="attached-file">
+              Demo financials attached: <span>{file.name}</span>
+            </p>
+          )}
           {fileError && <p className="field-error">{fileError}</p>}
         </div>
 
-        {submitError && <p className="field-error" role="alert">{submitError}</p>}
+        {submitError && <p ref={errorMessage} className="field-error" role="alert">{submitError}</p>}
+        {canShowSample && (
+          <div className="sample-offer">
+            <p>The analysis service isn't available right now, for example because no API key is set up. You can still see what Hedgehog produces for the demo ice cream shop.</p>
+            <button type="button" onClick={() => onComplete(twoScoopsReport())}>See sample results (ice cream shop)</button>
+          </div>
+        )}
 
         <button type="submit" className="primary" disabled={isSubmitting}>Analyze my risks</button>
       </form>

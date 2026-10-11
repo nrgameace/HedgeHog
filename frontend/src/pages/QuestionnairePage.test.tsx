@@ -1,6 +1,9 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { AnalysisUnavailableError } from '../api/client'
+import { twoScoopsReport } from '../api/twoScoopsReport'
+import { TWO_SCOOPS_ANSWERS, TWO_SCOOPS_FINANCIALS_FILENAME } from '../demo/twoScoopsDemo'
 import { blankAnswers } from '../test/answers'
 import type { HedgeReport } from '../types'
 import QuestionnairePage from './QuestionnairePage'
@@ -145,6 +148,52 @@ describe('QuestionnairePage', () => {
     expect(await screen.findByRole('alert')).toBeInTheDocument()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(screen.getByLabelText(/where is your business located/i)).toHaveValue('Austin, TX')
+  })
+
+  it('fills every question and attaches the ice cream shop financials with one click', () => {
+    const { submit } = renderPage(undefined, undefined, true)
+
+    fireEvent.click(screen.getByRole('button', { name: /^fill in demo data$/i }))
+
+    expect(screen.getByLabelText(/what does your business do/i)).toHaveValue(TWO_SCOOPS_ANSWERS.businessDescription)
+    expect(screen.getByLabelText(/where is your business located/i)).toHaveValue('Austin, TX')
+    expect(screen.getByLabelText(/budget would you have for risk mitigation/i)).toHaveValue(TWO_SCOOPS_ANSWERS.riskBudget)
+    expect(screen.getByText(TWO_SCOOPS_FINANCIALS_FILENAME)).toBeInTheDocument()
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuetext', '10 of 10 answered')
+
+    fireEvent.click(screen.getByRole('button', { name: /analyze/i }))
+
+    expect(submit).toHaveBeenCalledWith(TWO_SCOOPS_ANSWERS, expect.objectContaining({ name: TWO_SCOOPS_FINANCIALS_FILENAME }))
+  })
+
+  it('offers the sample ice cream shop results when the analysis service is unavailable', async () => {
+    const { onComplete } = renderPage(vi.fn().mockRejectedValue(new AnalysisUnavailableError('the analysis service is misconfigured')))
+
+    fireEvent.click(screen.getByRole('button', { name: /analyze/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /see sample results/i }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/misconfigured/)
+    expect(onComplete).toHaveBeenCalledWith(twoScoopsReport())
+  })
+
+  it('scrolls the error into view, since it sits below all the questions', async () => {
+    const scrollIntoView = vi.fn()
+    Element.prototype.scrollIntoView = scrollIntoView
+    renderPage(vi.fn().mockRejectedValue(new AnalysisUnavailableError("We couldn't reach the analysis service.")))
+
+    fireEvent.click(screen.getByRole('button', { name: /analyze/i }))
+
+    await screen.findByRole('alert')
+    expect(scrollIntoView).toHaveBeenCalled()
+  })
+
+  it('does not offer sample results when the problem is with what was entered', async () => {
+    renderPage(vi.fn().mockRejectedValue(new Error('The financials CSV needs a month column.')))
+
+    fireEvent.click(screen.getByRole('button', { name: /analyze/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/month column/)
+    expect(screen.queryByRole('button', { name: /see sample results/i })).not.toBeInTheDocument()
   })
 
   it('asks for the CSV before submitting when the real backend needs it', () => {
