@@ -31,7 +31,7 @@ VALID_ANSWERS = json.dumps(
 
 def _post_analyze(answers: str = VALID_ANSWERS, csv_bytes: bytes | None = b"month,operating_income\n2024-01,412.50\n"):
     files = {"financials": ("financials.csv", io.BytesIO(csv_bytes), "text/csv")} if csv_bytes is not None else None
-    return client.post("/analyze", data={"answers": answers}, files=files)
+    return client.post("/api/analyze", data={"answers": answers}, files=files)
 
 
 REPORT = {"bets": [], "profitSeries": [{"period": "Jan", "expected": 1, "actual": 1}], "simulatedPeriod": "2024"}
@@ -100,7 +100,7 @@ def test_analyze_rejects_invalid_answers_json():
 
 
 def test_analyze_requires_answers_field():
-    response = client.post("/analyze", data={}, files={"financials": ("financials.csv", io.BytesIO(b"date,revenue\n"), "text/csv")})
+    response = client.post("/api/analyze", data={}, files={"financials": ("financials.csv", io.BytesIO(b"date,revenue\n"), "text/csv")})
 
     assert response.status_code == 422
 
@@ -122,3 +122,11 @@ def test_analyze_maps_upstream_errors_to_502_without_leaking_details(monkeypatch
 
     assert response.status_code == 502
     assert str(error) not in response.text
+
+
+def test_financials_limit_fits_under_vercels_request_body_limit():
+    assert MAX_FINANCIALS_CSV_SIZE_BYTES == 4 * 1024 * 1024
+
+
+def test_analyze_is_only_served_under_the_api_prefix():
+    assert client.post("/analyze", data={"answers": VALID_ANSWERS}).status_code == 404

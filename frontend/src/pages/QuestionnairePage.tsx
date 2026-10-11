@@ -133,7 +133,7 @@ function QuestionnairePage({ submit, onComplete, requireFinancials }: Questionna
 
         <div className="field">
           <label htmlFor="financials">
-            Upload your financials (CSV, max 5 MB)
+            Upload your financials (CSV, max 4 MB)
           </label>
           <input
             id="financials"

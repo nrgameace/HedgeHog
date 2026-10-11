@@ -25,11 +25,15 @@ describe('validateFinancialsFile', () => {
     expect(validateFinancialsFile(csvFile(''), false)).toMatch(/empty/i)
   })
 
-  it('rejects files over 5 MB', () => {
-    expect(validateFinancialsFile(csvFile('a'.repeat(MAX_CSV_BYTES + 1)), false)).toMatch(/5 MB/)
+  it('caps uploads at 4 MB, under the hosting request limit', () => {
+    expect(MAX_CSV_BYTES).toBe(4 * 1024 * 1024)
   })
 
-  it('accepts a CSV of exactly 5 MB', () => {
+  it('rejects files over 4 MB', () => {
+    expect(validateFinancialsFile(csvFile('a'.repeat(MAX_CSV_BYTES + 1)), false)).toMatch(/4 MB/)
+  })
+
+  it('accepts a CSV of exactly 4 MB', () => {
     expect(validateFinancialsFile(csvFile('a'.repeat(MAX_CSV_BYTES)), false)).toBeNull()
   })
 
