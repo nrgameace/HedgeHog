@@ -1,5 +1,6 @@
 from app.hedge_report import build_hedge_report
-from app.position_sizing import PlannedBet
+from app.position_sizing import PlannedBet, UnhedgedRisk
+from app.trend_detection import HedgeableCategory
 from tests.sample_data import CATEGORIES, HISTORY, MARKETS
 
 RAIN = PlannedBet(
@@ -13,7 +14,7 @@ GAS = PlannedBet(
 
 
 def test_builds_bets_in_frontend_shape():
-    report = build_hedge_report(CATEGORIES, [RAIN, GAS], MARKETS, HISTORY)
+    report = build_hedge_report(CATEGORIES, [RAIN, GAS], [], MARKETS, HISTORY)
 
     assert report["bets"] == [
         {
@@ -42,9 +43,39 @@ def test_builds_bets_in_frontend_shape():
 
 
 def test_includes_profit_series_and_period():
-    report = build_hedge_report(CATEGORIES, [], MARKETS, HISTORY)
+    report = build_hedge_report(CATEGORIES, [], [], MARKETS, HISTORY)
 
     assert report["bets"] == []
+    assert report["unhedgedRisks"] == []
     assert report["simulatedPeriod"] == "2024"
     assert report["profitSeries"][0] == {"period": "Jan", "expected": 1000, "actual": 1000}
     assert len(report["profitSeries"]) == 12
+
+
+GPU = HedgeableCategory(category="gpu", label="GPU prices", reasoning="Compute is our biggest cost.", confidence=80, market_family="none")
+
+
+def _unhedged_entry(risk: UnhedgedRisk) -> dict:
+    return build_hedge_report(CATEGORIES + [GPU], [], [risk], MARKETS, HISTORY)["unhedgedRisks"][0]
+
+
+def test_unhedged_risk_without_any_market():
+    assert _unhedged_entry(UnhedgedRisk(category="gpu", reason="no_market")) == {
+        "factor": "GPU prices",
+        "explanation": "Compute is our biggest cost.",
+        "reason": "Kalshi doesn't list a market for this yet.",
+    }
+
+
+def test_unhedged_weather_outside_supported_cities():
+    assert _unhedged_entry(UnhedgedRisk(category="rain", reason="no_city_market"))["reason"] == (
+        "Kalshi only lists weather markets for Austin, New York, Chicago, Los Angeles, Miami, San Francisco and Seattle."
+    )
+
+
+def test_unhedged_when_no_market_fits():
+    assert _unhedged_entry(UnhedgedRisk(category="rain", reason="no_fit"))["reason"] == "None of the open Kalshi markets fit this risk closely enough."
+
+
+def test_unhedged_when_already_covered_names_the_covering_trade():
+    assert _unhedged_entry(UnhedgedRisk(category="gas_prices", reason="duplicate", covered_by="rain"))["reason"] == "Already covered by the Rain trade."

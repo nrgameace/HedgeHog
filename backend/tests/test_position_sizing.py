@@ -2,11 +2,11 @@ import json
 
 import pytest
 
-from app.position_sizing import PlannedBet, PositionSizingError, plan_positions
-from tests.sample_data import ANSWERS, CATEGORIES, HISTORY, MARKETS, NOTES
+from app.position_sizing import PlannedBet, PositionSizingError, SizingResult, UnhedgedRisk, candidates_by_category, plan_positions, position_sizing_schema
+from app.trend_detection import HedgeableCategory
+from tests.sample_data import ANSWERS, CANDIDATES, CATEGORIES, HISTORY, MARKETS, NOTES
 
-RAIN_BET = {
-    "category": "rain",
+RAIN_PLAN = {
     "ticker": "KXRAINAUSM-26OCT-4",
     "side": "YES",
     "amountUsd": 300,
@@ -16,6 +16,7 @@ RAIN_BET = {
     "riskExplanation": "Rainy days empty the patio.",
     "rationale": "Pays out in rainy months.",
 }
+GAS_PLAN = {**RAIN_PLAN, "ticker": "KXAAAGASM-26OCT31-3.50", "tradeMonths": [5, 6], "hitMonths": [], "riskExplanation": "Van fuel.", "rationale": "Covers fuel."}
 
 EXPECTED_RAIN = PlannedBet(
     category="rain", ticker="KXRAINAUSM-26OCT-4", side="YES", amount_usd=300, frequency="Monthly, Apr–Jun",
@@ -23,89 +24,130 @@ EXPECTED_RAIN = PlannedBet(
 )
 
 
-def _plan_with_reply(monkeypatch, reply: str) -> list[PlannedBet]:
+def _plan_with_reply(monkeypatch, reply: str, candidates=CANDIDATES) -> SizingResult:
     monkeypatch.setattr("app.position_sizing.chat_complete", lambda *args, **kwargs: reply)
-    return plan_positions(ANSWERS, CATEGORIES, HISTORY, NOTES, MARKETS)
+    return plan_positions(ANSWERS, CATEGORIES, HISTORY, NOTES, candidates)
 
 
-def _plan_with_bets(monkeypatch, *bets: dict) -> list[PlannedBet]:
-    return _plan_with_reply(monkeypatch, json.dumps({"bets": list(bets)}))
+def _plan_with(monkeypatch, rain: object = RAIN_PLAN, gas: object = GAS_PLAN) -> SizingResult:
+    plans = {slug: plan for slug, plan in (("rain", rain), ("gas_prices", gas)) if plan is not None}
+    return _plan_with_reply(monkeypatch, json.dumps({"plans": plans}))
 
 
-def test_parses_valid_bet(monkeypatch):
-    assert _plan_with_bets(monkeypatch, RAIN_BET) == [EXPECTED_RAIN]
+def test_candidates_by_category_matches_market_families():
+    assert candidates_by_category(CATEGORIES, MARKETS) == CANDIDATES
 
 
-def test_sends_categories_and_markets_to_the_model(monkeypatch):
+def test_candidates_by_category_gives_none_family_no_candidates():
+    gpu = HedgeableCategory(category="gpu", label="GPU prices", reasoning="Compute.", confidence=80, market_family="none")
+
+    assert candidates_by_category([gpu], MARKETS) == {"gpu": []}
+
+
+def test_schema_requires_every_category_and_limits_tickers_per_category():
+    plans = position_sizing_schema(CANDIDATES)["properties"]["plans"]
+
+    assert set(plans["required"]) == {"rain", "gas_prices"}
+    assert plans["properties"]["rain"]["properties"]["ticker"]["enum"] == ["KXRAINAUSM-26OCT-4", "NONE"]
+    assert plans["properties"]["gas_prices"]["properties"]["ticker"]["enum"] == ["KXAAAGASM-26OCT31-3.50", "NONE"]
+    assert plans["additionalProperties"] is False
+
+
+def test_schema_skips_categories_without_candidates():
+    plans = position_sizing_schema({**CANDIDATES, "gpu": []})["properties"]["plans"]
+
+    assert "gpu" not in plans["required"]
+
+
+def test_parses_a_bet_for_each_category(monkeypatch):
+    result = _plan_with(monkeypatch)
+
+    assert result.bets[0] == EXPECTED_RAIN
+    assert [bet.category for bet in result.bets] == ["rain", "gas_prices"]
+    assert result.unhedged == []
+
+
+def test_sends_the_schema_and_only_categories_with_candidates(monkeypatch):
     captured = {}
 
     def fake_chat_complete(messages, **kwargs):
-        captured["messages"] = messages
-        return json.dumps({"bets": []})
+        captured.update(messages=messages, schema=kwargs["response_schema"])
+        return json.dumps({"plans": {"rain": RAIN_PLAN}})
 
     monkeypatch.setattr("app.position_sizing.chat_complete", fake_chat_complete)
-    plan_positions(ANSWERS, CATEGORIES, HISTORY, NOTES, MARKETS)
+    plan_positions(ANSWERS, CATEGORIES, HISTORY, NOTES, {"rain": CANDIDATES["rain"], "gas_prices": []})
 
-    assert "gas_prices | Gas prices" in captured["messages"][1]["content"]
-    assert "KXRAINAUSM-26OCT-4" in captured["messages"][1]["content"]
-
-
-def test_strips_fences(monkeypatch):
-    assert _plan_with_reply(monkeypatch, f"```json\n{json.dumps({'bets': [RAIN_BET]})}\n```") == [EXPECTED_RAIN]
+    assert captured["schema"] == position_sizing_schema({"rain": CANDIDATES["rain"]})
+    assert "gas_prices" not in captured["messages"][1]["content"]
 
 
-def test_drops_unknown_ticker(monkeypatch):
-    assert _plan_with_bets(monkeypatch, {**RAIN_BET, "ticker": "KXMADEUP-1"}) == []
+def test_skips_the_model_when_no_category_has_candidates(monkeypatch):
+    monkeypatch.setattr("app.position_sizing.chat_complete", lambda *args, **kwargs: pytest.fail("model should not be called"))
+
+    assert plan_positions(ANSWERS, CATEGORIES, HISTORY, NOTES, {"rain": [], "gas_prices": []}) == SizingResult(bets=[], unhedged=[])
 
 
-def test_drops_unknown_category(monkeypatch):
-    assert _plan_with_bets(monkeypatch, {**RAIN_BET, "category": "dairy"}) == []
+def test_none_ticker_is_unhedged_no_fit(monkeypatch):
+    result = _plan_with(monkeypatch, gas={**GAS_PLAN, "ticker": "NONE"})
+
+    assert [bet.category for bet in result.bets] == ["rain"]
+    assert result.unhedged == [UnhedgedRisk(category="gas_prices", reason="no_fit")]
 
 
-def test_drops_duplicate_ticker(monkeypatch):
-    assert _plan_with_bets(monkeypatch, RAIN_BET, {**RAIN_BET, "category": "gas_prices"}) == [EXPECTED_RAIN]
+def test_missing_category_is_unhedged_no_fit(monkeypatch):
+    assert _plan_with(monkeypatch, gas=None).unhedged == [UnhedgedRisk(category="gas_prices", reason="no_fit")]
 
 
-def test_drops_bad_side(monkeypatch):
-    assert _plan_with_bets(monkeypatch, {**RAIN_BET, "side": "MAYBE"}) == []
+def test_ticker_from_another_category_is_unhedged_no_fit(monkeypatch):
+    assert _plan_with(monkeypatch, gas={**GAS_PLAN, "ticker": "KXRAINAUSM-26OCT-4"}).unhedged == [UnhedgedRisk(category="gas_prices", reason="no_fit")]
 
 
-@pytest.mark.parametrize("amount", [0, -5, "300", None])
-def test_drops_nonpositive_or_non_numeric_amount(monkeypatch, amount):
-    assert _plan_with_bets(monkeypatch, {**RAIN_BET, "amountUsd": amount}) == []
+def test_duplicate_ticker_is_unhedged_as_covered(monkeypatch):
+    candidates = {"rain": CANDIDATES["rain"], "gas_prices": CANDIDATES["rain"]}
+    plans = {"rain": RAIN_PLAN, "gas_prices": RAIN_PLAN}
+
+    result = _plan_with_reply(monkeypatch, json.dumps({"plans": plans}), candidates)
+
+    assert result.unhedged == [UnhedgedRisk(category="gas_prices", reason="duplicate", covered_by="rain")]
+
+
+@pytest.mark.parametrize(
+    "bad_plan",
+    [
+        "rain",
+        {**RAIN_PLAN, "side": "MAYBE"},
+        {**RAIN_PLAN, "amountUsd": 0},
+        {**RAIN_PLAN, "amountUsd": "300"},
+        {**RAIN_PLAN, "tradeMonths": [13]},
+        {**RAIN_PLAN, "rationale": " "},
+        {**RAIN_PLAN, "ticker": {"a": 1}},
+    ],
+)
+def test_malformed_plan_is_unhedged_no_fit(monkeypatch, bad_plan):
+    assert _plan_with(monkeypatch, rain=bad_plan).unhedged == [UnhedgedRisk(category="rain", reason="no_fit")]
+
+
+@pytest.mark.parametrize("amount", ["NaN", "Infinity"])
+def test_non_finite_amount_is_unhedged(monkeypatch, amount):
+    reply = json.dumps({"plans": {"rain": RAIN_PLAN, "gas_prices": GAS_PLAN}}).replace('"amountUsd": 300', f'"amountUsd": {amount}', 1)
+
+    assert UnhedgedRisk(category="rain", reason="no_fit") in _plan_with_reply(monkeypatch, reply).unhedged
 
 
 def test_rounds_fractional_amount(monkeypatch):
-    assert _plan_with_bets(monkeypatch, {**RAIN_BET, "amountUsd": 299.6})[0].amount_usd == 300
+    assert _plan_with(monkeypatch, rain={**RAIN_PLAN, "amountUsd": 299.6}).bets[0].amount_usd == 300
 
 
-@pytest.mark.parametrize("field", ["frequency", "riskExplanation", "rationale"])
-def test_drops_bet_missing_text(monkeypatch, field):
-    assert _plan_with_bets(monkeypatch, {**RAIN_BET, field: " "}) == []
-
-
-def test_filters_out_of_range_months(monkeypatch):
-    bets = _plan_with_bets(monkeypatch, {**RAIN_BET, "tradeMonths": [12, 5, -1, 3, 3, "4", 4.0]})
-
-    assert bets[0].trade_months == [3, 5]
-
-
-def test_drops_bet_without_valid_trade_months(monkeypatch):
-    assert _plan_with_bets(monkeypatch, {**RAIN_BET, "tradeMonths": [13]}) == []
+def test_filters_out_of_range_and_duplicate_months(monkeypatch):
+    assert _plan_with(monkeypatch, rain={**RAIN_PLAN, "tradeMonths": [12, 5, -1, 3, 3, "4", 4.0]}).bets[0].trade_months == [3, 5]
 
 
 def test_hit_months_limited_to_trade_months(monkeypatch):
-    assert _plan_with_bets(monkeypatch, {**RAIN_BET, "hitMonths": [4, 7, 5]})[0].hit_months == [4, 5]
+    assert _plan_with(monkeypatch, rain={**RAIN_PLAN, "hitMonths": [4, 7, 5]}).bets[0].hit_months == [4, 5]
 
 
-def test_missing_hit_months_means_no_hits(monkeypatch):
-    bet = {key: value for key, value in RAIN_BET.items() if key != "hitMonths"}
-
-    assert _plan_with_bets(monkeypatch, bet)[0].hit_months == []
-
-
-def test_drops_non_object_bet(monkeypatch):
-    assert _plan_with_bets(monkeypatch, "rain", RAIN_BET) == [EXPECTED_RAIN]
+def test_strips_fences(monkeypatch):
+    assert _plan_with_reply(monkeypatch, f"```json\n{json.dumps({'plans': {'rain': RAIN_PLAN, 'gas_prices': GAS_PLAN}})}\n```").bets[0] == EXPECTED_RAIN
 
 
 def test_raises_on_invalid_json(monkeypatch):
@@ -113,18 +155,6 @@ def test_raises_on_invalid_json(monkeypatch):
         _plan_with_reply(monkeypatch, "not json")
 
 
-def test_raises_on_missing_bets_key(monkeypatch):
+def test_raises_on_missing_plans(monkeypatch):
     with pytest.raises(PositionSizingError):
-        _plan_with_reply(monkeypatch, '{"trades": []}')
-
-
-@pytest.mark.parametrize(("field", "value"), [("ticker", {"a": 1}), ("category", ["rain"]), ("side", ["YES"])])
-def test_drops_bet_with_non_text_identifier(monkeypatch, field, value):
-    assert _plan_with_bets(monkeypatch, {**RAIN_BET, field: value}) == []
-
-
-@pytest.mark.parametrize("amount", ["NaN", "Infinity"])
-def test_drops_non_finite_amount(monkeypatch, amount):
-    reply = json.dumps({"bets": [RAIN_BET]}).replace('"amountUsd": 300', f'"amountUsd": {amount}')
-
-    assert _plan_with_reply(monkeypatch, reply) == []
+        _plan_with_reply(monkeypatch, '{"bets": []}')

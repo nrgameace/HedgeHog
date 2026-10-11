@@ -40,8 +40,16 @@ export type ProfitPoint = {
   actual: number
 }
 
+// A risk the analysis found that no open Kalshi market can hedge, and why.
+export type UnhedgedRisk = {
+  factor: string
+  explanation: string
+  reason: string
+}
+
 export type HedgeReport = {
   bets: Bet[]
+  unhedgedRisks: UnhedgedRisk[]
   profitSeries: ProfitPoint[]
   simulatedPeriod: string
 }

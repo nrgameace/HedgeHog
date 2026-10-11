@@ -23,7 +23,10 @@ const report: HedgeReport = {
     },
   ],
   profitSeries: MONTHS.map((period, index) => ({ period, expected: 10000, actual: index === 2 ? 4000 : 10000 })),
+  unhedgedRisks: [],
 }
+
+const gpuRisk = { factor: 'GPU prices', explanation: 'Compute is our biggest cost.', reason: "Kalshi doesn't list a market for this yet." }
 
 const renderPage = () => render(<ResultsPage report={report} onStartOver={vi.fn()} />)
 const row = (name: RegExp) => screen.getByRole('row', { name })
@@ -114,5 +117,28 @@ describe('ResultsPage', () => {
 
     expect(screen.getByText(/no clear hedges found/i)).toBeInTheDocument()
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
+  })
+
+  it('lists risks that have no Kalshi market, with the reason', () => {
+    render(<ResultsPage report={{ ...report, unhedgedRisks: [gpuRisk] }} onStartOver={vi.fn()} />)
+
+    const section = screen.getByRole('region', { name: /risks without a kalshi market/i })
+    expect(within(section).getByText('GPU prices')).toBeInTheDocument()
+    expect(within(section).getByText('Compute is our biggest cost.')).toBeInTheDocument()
+    expect(within(section).getByText("Kalshi doesn't list a market for this yet.")).toBeInTheDocument()
+  })
+
+  it('hides the no-market section when every risk has a trade', () => {
+    renderPage()
+
+    expect(screen.queryByRole('region', { name: /risks without a kalshi market/i })).not.toBeInTheDocument()
+  })
+
+  it('explains that risks were found but none has a market yet', () => {
+    render(<ResultsPage report={{ ...report, bets: [], unhedgedRisks: [gpuRisk] }} onStartOver={vi.fn()} />)
+
+    expect(screen.getByText(/we found risks, but none has a matching kalshi market yet/i)).toBeInTheDocument()
+    expect(screen.queryByText(/no clear hedges found/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: /risks without a kalshi market/i })).toBeInTheDocument()
   })
 })

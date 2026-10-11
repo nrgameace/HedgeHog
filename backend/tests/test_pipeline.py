@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -5,10 +6,12 @@ import pytest
 from app.csv_parsing import parse_csv_rows
 from app.financial_history import FinancialHistoryError
 from app.pipeline import run_analysis
-from app.position_sizing import PlannedBet
+from app.position_sizing import PlannedBet, SizingResult, UnhedgedRisk
+from app.trend_detection import HedgeableCategory
 from tests.sample_data import ANSWERS, CATEGORIES, MARKETS
 
 TWO_SCOOPS_ROWS = parse_csv_rows((Path(__file__).resolve().parents[2] / "demo-data/two-scoops-creamery/financials.csv").read_bytes())
+GPU = HedgeableCategory(category="gpu", label="GPU prices", reasoning="Compute is our biggest cost.", confidence=95, market_family="none")
 
 RAIN = PlannedBet(
     category="rain", ticker="KXRAINAUSM-26OCT-4", side="YES", amount_usd=400, frequency="Monthly", trade_months=[4, 5],
@@ -22,38 +25,67 @@ def _must_not_be_called(*args, **kwargs):
 
 @pytest.fixture
 def fake_steps(monkeypatch):
-    calls = {}
+    calls = {"categories": CATEGORIES}
 
-    def fake_plan(answers, categories, history, notes, markets):
-        calls.update(categories=categories, history=history, notes=notes, markets=markets)
-        return [RAIN]
+    def fake_load(series):
+        calls["series"] = series
+        return [market for market in MARKETS if market.ticker.split("-")[0] in series]
 
-    monkeypatch.setattr("app.pipeline.detect_hedgeable_categories", lambda answers, rows: CATEGORIES)
-    monkeypatch.setattr("app.pipeline.load_candidate_markets", lambda: MARKETS)
+    def fake_plan(answers, categories, history, notes, candidates):
+        calls.update(history=history, notes=notes, candidates=candidates, sized=categories)
+        bets = [RAIN] if candidates["rain"] else []
+        return SizingResult(bets=bets, unhedged=[UnhedgedRisk(category="gas_prices", reason="no_fit")])
+
+    monkeypatch.setattr("app.pipeline.detect_hedgeable_categories", lambda answers, rows: calls["categories"])
+    monkeypatch.setattr("app.pipeline.load_candidate_markets", fake_load)
     monkeypatch.setattr("app.pipeline.plan_positions", fake_plan)
     return calls
 
 
-def test_passes_trend_categories_into_position_sizing(fake_steps):
+def test_fetches_only_series_for_the_categories_and_city(fake_steps):
     run_analysis(ANSWERS, TWO_SCOOPS_ROWS)
 
-    assert fake_steps["categories"] == CATEGORIES
-    assert fake_steps["markets"] == MARKETS
+    assert fake_steps["series"] == ["KXRAINAUSM", "KXAAAGASM"]
+
+
+def test_passes_trend_categories_and_their_candidates_into_position_sizing(fake_steps):
+    run_analysis(ANSWERS, TWO_SCOOPS_ROWS)
+
+    assert fake_steps["sized"] == CATEGORIES
+    assert fake_steps["candidates"] == {"rain": [MARKETS[0]], "gas_prices": [MARKETS[1]]}
     assert fake_steps["history"].simulated_year == 2024
     assert fake_steps["notes"][4].startswith("Rainiest May")
 
 
-def test_returns_report_for_simulated_year(fake_steps):
+def test_returns_bets_and_unhedged_risks(fake_steps):
     report = run_analysis(ANSWERS, TWO_SCOOPS_ROWS)
 
     assert report["simulatedPeriod"] == "2024"
     assert [bet["ticker"] for bet in report["bets"]] == ["KXRAINAUSM-26OCT-4"]
+    assert [risk["factor"] for risk in report["unhedgedRisks"]] == ["Gas prices"]
+
+
+def test_family_none_is_unhedged_and_listed_by_confidence(fake_steps):
+    fake_steps["categories"] = [GPU] + CATEGORIES
+
+    report = run_analysis(ANSWERS, TWO_SCOOPS_ROWS)
+
+    assert [risk["factor"] for risk in report["unhedgedRisks"]] == ["GPU prices", "Gas prices"]
+    assert report["unhedgedRisks"][0]["reason"] == "Kalshi doesn't list a market for this yet."
+
+
+def test_weather_outside_supported_cities_is_unhedged_with_city_reason(fake_steps):
+    answers = replace(ANSWERS, location="Denver, CO")
+
+    report = run_analysis(answers, TWO_SCOOPS_ROWS)
+
+    assert fake_steps["series"] == ["KXAAAGASM"]
+    assert report["unhedgedRisks"][0]["factor"] == "Rain"
+    assert report["unhedgedRisks"][0]["reason"].startswith("Kalshi only lists weather markets for Austin")
 
 
 def test_scales_bets_to_budget(fake_steps):
-    answers = ANSWERS.__class__(**{**ANSWERS.__dict__, "risk_budget": "$100 a month"})
-
-    report = run_analysis(answers, TWO_SCOOPS_ROWS)
+    report = run_analysis(replace(ANSWERS, risk_budget="$100 a month"), TWO_SCOOPS_ROWS)
 
     assert report["bets"][0]["amountUsd"] == 100
 
@@ -65,7 +97,7 @@ def test_no_categories_skips_kalshi_and_sizing(monkeypatch):
 
     report = run_analysis(ANSWERS, TWO_SCOOPS_ROWS)
 
-    assert report["bets"] == []
+    assert report["bets"] == [] and report["unhedgedRisks"] == []
     assert len(report["profitSeries"]) == 12
 
 

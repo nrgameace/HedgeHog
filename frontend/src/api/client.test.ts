@@ -18,7 +18,7 @@ describe('submitQuestionnaire', () => {
   })
 
   it('in real mode, posts the answers and the file to /analyze', async () => {
-    const report = { bets: [], profitSeries: [], simulatedPeriod: '' }
+    const report = { bets: [], unhedgedRisks: [], profitSeries: [], simulatedPeriod: '' }
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(report), { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
 
