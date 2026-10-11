@@ -203,12 +203,12 @@ class TestFiltering:
     def test_non_business_categories_are_never_offered(self):
         assert "KXNHLGOAL" not in tickers("NHL goals")
 
-    def test_series_without_a_derivable_horizon_are_excluded_by_default(self):
-        """A custom-frequency series cannot be period-matched, so it cannot be sized."""
-        assert "KXGPURULE" not in tickers("GPU export restrictions")
-
-    def test_unsizeable_series_can_be_included_deliberately(self):
-        assert "KXGPURULE" in tickers("GPU export restrictions", require_known_horizon=False)
+    def test_a_custom_frequency_series_is_still_ranked(self):
+        """Whether a window can be derived depends on the market ticker, not the
+        series frequency. KXRAINAUSM is `custom` yet its month-only tickers give a
+        clean October window, and filtering it out here hid the best Austin rain
+        market there is. app.kalshi.candidates drops undatable markets instead."""
+        assert "KXGPURULE" in tickers("GPU export restrictions")
 
 
 class TestDomainExpansion:

@@ -29,7 +29,7 @@ from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 
-from app.kalshi.models import NOMINAL_WINDOW_DAYS, Series
+from app.kalshi.models import Series
 
 DEFAULT_LIMIT = 25
 
@@ -140,12 +140,16 @@ def normalize(text: str) -> tuple[str, ...]:
     return tuple(seen)
 
 
-def rank_series(factor: str, catalogue: Sequence[Series], limit: int = DEFAULT_LIMIT, min_score: float = 0.0, require_known_horizon: bool = True, weights: TermWeights | None = None, expansions: Mapping[str, Sequence[str]] = EXPANSIONS) -> list[Candidate]:
+def rank_series(factor: str, catalogue: Sequence[Series], limit: int = DEFAULT_LIMIT, min_score: float = 0.0, weights: TermWeights | None = None, expansions: Mapping[str, Sequence[str]] = EXPANSIONS) -> list[Candidate]:
     """The series most plausibly related to a stated risk factor, best first.
 
-    `require_known_horizon` drops `custom` and `one_off` frequencies: without a
-    derivable window the revenue shortfall cannot be period-matched, so such a
-    series cannot be sized even if it is topically perfect.
+    Ranking deliberately does *not* filter on whether a horizon can be derived.
+    That is a property of each market's ticker, not of the series frequency, and
+    `app.kalshi.candidates` already drops markets whose window cannot be worked
+    out. Filtering here instead cost real coverage: `KXRAINAUSM` is titled "RAIN
+    AUSTIN" and is the best match there is for an Austin rain risk, but its
+    frequency is `custom`, so a frequency check hid it - even though its
+    month-only tickers give a perfectly good October window.
 
     `expansions` bridges factor wording to Kalshi's product names. The curated
     default covers the demo scenarios; `app.model.vocabulary` proposes one per
@@ -161,7 +165,7 @@ def rank_series(factor: str, catalogue: Sequence[Series], limit: int = DEFAULT_L
 
     candidates = []
     for series in catalogue:
-        if not _is_eligible(series, require_known_horizon):
+        if not series.is_business_relevant or series.is_test_series:
             continue
         score, matched = _score_title(query, series.title, weights)
         if not matched or score <= min_score:
@@ -170,12 +174,6 @@ def rank_series(factor: str, catalogue: Sequence[Series], limit: int = DEFAULT_L
 
     candidates.sort(key=lambda candidate: (-candidate.score, candidate.series.ticker))
     return candidates[:limit]
-
-
-def _is_eligible(series: Series, require_known_horizon: bool) -> bool:
-    if not series.is_business_relevant or series.is_test_series:
-        return False
-    return not require_known_horizon or series.frequency in NOMINAL_WINDOW_DAYS
 
 
 def _query_terms(factor: str, expansions: Mapping[str, Sequence[str]] = EXPANSIONS) -> _Query:
