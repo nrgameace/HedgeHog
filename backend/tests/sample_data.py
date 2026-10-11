@@ -16,8 +16,8 @@ ANSWERS = QuestionnaireAnswers(
 )
 
 CATEGORIES = [
-    HedgeableCategory(category="rain", label="Rain", reasoning="Rainy weekends empty the patio."),
-    HedgeableCategory(category="gas_prices", label="Gas prices", reasoning="The delivery van runs on gas."),
+    HedgeableCategory(category="rain", label="Rain", reasoning="Rainy weekends empty the patio.", confidence=90, market_family="rain"),
+    HedgeableCategory(category="gas_prices", label="Gas prices", reasoning="The delivery van runs on gas.", confidence=60, market_family="gas"),
 ]
 
 MARKETS = [

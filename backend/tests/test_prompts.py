@@ -23,47 +23,35 @@ def test_build_trend_detection_messages_includes_every_answer_field():
     assert ANSWERS.risk_budget in user_content
 
 
-def test_build_trend_detection_messages_includes_csv_rows():
-    financials = [{"date": "2026-01-01", "revenue": "412.50"}]
+def test_build_trend_detection_messages_includes_evidence_digest():
+    financials = [{"month": "2024-01", "operating_income": "100", "notes": "Opened"}]
 
-    messages = build_trend_detection_messages(ANSWERS, financials)
+    user_content = build_trend_detection_messages(ANSWERS, financials)[1]["content"]
 
-    assert "412.50" in messages[1]["content"]
-
-
-def test_build_trend_detection_messages_truncates_rows_over_200_with_a_note():
-    financials = [{"date": f"2026-01-{i:03d}", "revenue": str(i)} for i in range(1, 251)]
-
-    messages = build_trend_detection_messages(ANSWERS, financials)
-
-    user_content = messages[1]["content"]
-    assert "first 200 of 250 rows" in user_content
-    assert financials[199]["date"] in user_content
-    assert financials[200]["date"] not in user_content
+    assert "Worst months vs. a normal year:" in user_content
+    assert "- 2024-01: Opened" in user_content
+    assert "Biggest swings by column:" in user_content
 
 
-def test_build_trend_detection_messages_no_truncation_note_under_cap():
-    financials = [{"date": "2026-01-01", "revenue": "412.50"}]
+def test_build_trend_detection_messages_sends_only_the_last_24_rows():
+    financials = [{"month": f"{2020 + index // 12}-{index % 12 + 1:02d}", "operating_income": str(index)} for index in range(30)]
 
-    messages = build_trend_detection_messages(ANSWERS, financials)
+    user_content = build_trend_detection_messages(ANSWERS, financials)[1]["content"].split("Most recent rows")[1]
 
-    assert "first 200" not in messages[1]["content"]
-
-
-def test_build_trend_detection_messages_no_truncation_note_at_exactly_200_rows():
-    financials = [{"date": f"2026-01-{i:03d}", "revenue": str(i)} for i in range(1, 201)]
-
-    messages = build_trend_detection_messages(ANSWERS, financials)
-
-    user_content = messages[1]["content"]
-    assert "first 200" not in user_content
-    assert financials[199]["date"] in user_content
+    assert "2020-06,5" not in user_content
+    assert "2020-07,6" in user_content
+    assert "2022-06,29" in user_content
+    assert "last 24 of 30 rows" in user_content
 
 
-def test_build_trend_detection_messages_notes_zero_rows_for_empty_financials():
-    messages = build_trend_detection_messages(ANSWERS, [])
+def test_build_trend_detection_messages_handles_empty_financials():
+    assert "0 rows" in build_trend_detection_messages(ANSWERS, [])[1]["content"]
 
-    assert "0 rows" in messages[1]["content"]
+
+def test_trend_detection_prompt_asks_for_every_factor_with_confidence():
+    assert "every factor" in TREND_DETECTION_SYSTEM_PROMPT
+    assert "confidence" in TREND_DETECTION_SYSTEM_PROMPT
+    assert "market_family" in TREND_DETECTION_SYSTEM_PROMPT
 
 
 def _position_sizing_user_content() -> str:
