@@ -1,3 +1,5 @@
+import pytest
+
 from app.backtest import monthly_stake_peak, scale_amounts_to_budget, simulate_monthly_net
 
 
@@ -33,7 +35,7 @@ def test_scale_without_budget_only_rounds():
     assert scale_amounts_to_budget([(99.6, [0])], None) == [100]
 
 
-from app.backtest import cap_amount_to_shortfall, worst_monthly_shortfall
+from app.backtest import full_cover_stake, worst_monthly_shortfall
 from app.financial_history import MONTH_LABELS, ProfitHistory, ProfitPoint
 
 
@@ -58,25 +60,33 @@ class TestWorstMonthlyShortfall:
         assert worst_monthly_shortfall(_history({}), [0, 1, 2]) == 0
 
 
-class TestCapAmountToShortfall:
-    def test_shrinks_a_stake_that_would_pay_more_than_the_hole(self):
-        """600 short at a 0.20 price needs a 120 stake: 120/0.20 pays back exactly 600."""
-        assert cap_amount_to_shortfall(300, 0.2, [3, 4, 5], _history({4: 600})) == 120
+class TestFullCoverStake:
+    """stake / price is the payout, so filling a hole of `shortfall` costs
+    shortfall * price. That is the whole of the hedging arithmetic."""
 
-    def test_leaves_a_stake_that_under_covers_alone(self):
-        assert cap_amount_to_shortfall(50, 0.2, [3, 4, 5], _history({4: 600})) == 50
+    def test_the_stake_that_exactly_fills_the_worst_month(self):
+        assert full_cover_stake(0.2, [3, 4, 5], _history({4: 600})) == pytest.approx(120)
 
-    def test_leaves_the_stake_alone_when_no_traded_month_fell_short(self):
-        """Nothing to over-cover, and the budget scaling still applies afterwards."""
-        assert cap_amount_to_shortfall(300, 0.2, [0, 1], _history({9: 900})) == 300
+    def test_the_payout_it_buys_equals_the_shortfall(self):
+        stake = full_cover_stake(0.25, [4], _history({4: 800}))
 
-    def test_never_caps_below_a_single_dollar(self):
-        assert cap_amount_to_shortfall(300, 0.01, [4], _history({4: 10})) == 1
+        assert stake / 0.25 == pytest.approx(800)
 
-    def test_a_zero_price_cannot_be_capped(self):
-        assert cap_amount_to_shortfall(300, 0.0, [4], _history({4: 600})) == 300
+    def test_a_cheaper_contract_needs_a_smaller_stake_for_the_same_cover(self):
+        """The whole reason price dominates: 5c buys ten times the cover of 50c."""
+        dear = full_cover_stake(0.50, [4], _history({4: 1000}))
+        cheap = full_cover_stake(0.05, [4], _history({4: 1000}))
 
-    def test_the_capped_payout_matches_the_shortfall(self):
-        capped = cap_amount_to_shortfall(1000, 0.25, [4], _history({4: 800}))
+        assert dear / cheap == pytest.approx(10)
 
-        assert round(capped / 0.25) == 800
+    def test_no_shortfall_in_the_traded_months_needs_no_stake(self):
+        assert full_cover_stake(0.2, [0, 1], _history({9: 900})) == 0.0
+
+    def test_a_zero_price_cannot_be_sized(self):
+        assert full_cover_stake(0.0, [4], _history({4: 600})) == 0.0
+
+    def test_it_does_not_depend_on_the_models_guess(self):
+        """Sizing is arithmetic: there is no amount argument to pass in."""
+        import inspect
+
+        assert "amount_usd" not in inspect.signature(full_cover_stake).parameters

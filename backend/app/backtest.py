@@ -23,18 +23,24 @@ def worst_monthly_shortfall(history: ProfitHistory, trade_months: list[int]) -> 
     return max((point.expected - point.actual for month, point in enumerate(history.points) if month in trade_months), default=0)
 
 
-def cap_amount_to_shortfall(amount_usd: int, price: float, trade_months: list[int], history: ProfitHistory) -> int:
-    """Shrink a stake whose payout would exceed the hole it is filling.
+def full_cover_stake(price: float, trade_months: list[int], history: ProfitHistory) -> float:
+    """The monthly stake whose payout exactly fills the deepest month it covers.
 
-    A contract paying out `amount / price` against a month that was only ever
-    `shortfall` short is not a hedge for the excess, it is a bet - and it spends
-    budget that could have covered another risk. So the stake is capped at
-    `shortfall * price`, which is exactly the full-cover size.
+    A contract returns `stake / price`, so filling a hole of `shortfall` costs
+    `shortfall * price`. That is the whole of the hedging arithmetic: the stake
+    follows from the size of the hole and the price of cover, and nothing else.
 
-    A month with no shortfall is left alone: there is nothing to over-cover, and
-    the budget scaling still applies afterwards.
+    Note what is absent - the model's own guess at an amount. Sizing is
+    arithmetic, and the stake it produced was simply unrelated to the hole: on
+    the ice cream demo it chose $400 against a $12,523 June shortfall that
+    justified $6,136 at a 49c price, and the old code could only ever shrink that
+    further. Starting from full cover and reducing to fit the budget means the
+    budget actually gets used.
+
+    Cadence does not enter. A daily series needs about thirty contracts to cover
+    a month, but the monthly outlay is still `shortfall * price` either way -
+    thirty contracts at a thirtieth of the stake. Cadence matters only for
+    describing a trade, not for pricing it.
     """
     shortfall = worst_monthly_shortfall(history, trade_months)
-    if shortfall <= 0 or price <= 0:
-        return amount_usd
-    return max(min(amount_usd, round(shortfall * price)), 1)
+    return shortfall * price if shortfall > 0 and price > 0 else 0.0
