@@ -158,3 +158,18 @@ def test_raises_on_invalid_json(monkeypatch):
 def test_raises_on_missing_plans(monkeypatch):
     with pytest.raises(PositionSizingError):
         _plan_with_reply(monkeypatch, '{"bets": []}')
+
+
+def test_candidates_withhold_band_markets():
+    """A 94-95 degree band is not a heat hedge: YES pays on a pleasant Austin day."""
+    from app.kalshi_client import KalshiMarket
+    from app.position_sizing import candidates_by_category
+    from app.trend_detection import HedgeableCategory
+
+    heat = HedgeableCategory(category="heat", label="Extreme heat", reasoning="100F empties the street.", confidence=85, market_family="heat")
+    band = KalshiMarket("KXHIGHAUS-26OCT11-B94.5", "Will the maximum temperature be 94-95?", "94 to 95", 0.32, strike_type="between")
+    tail = KalshiMarket("KXHIGHAUS-26OCT11-T97", "Will the maximum temperature be >97?", "98 or above", 0.01, strike_type="greater")
+
+    offered = candidates_by_category([heat], [band, tail])["heat"]
+
+    assert [market.ticker for market in offered] == ["KXHIGHAUS-26OCT11-T97"]

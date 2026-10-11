@@ -12,21 +12,30 @@ KALSHI_DEADLINE_SECONDS = 6.0
 MARKET_FAMILIES = ("rain", "heat", "gas", "oil", "inflation", "food_prices", "interest_rates", "jobs", "economy", "none")
 CITY_WEATHER_FAMILIES = {"rain", "heat"}
 
+# How much one contract of a series covers. Taken from Kalshi's own `/series`
+# frequency rather than inferred: the ticker cannot be trusted for this, since
+# KXAAAGASM-26OCT31 looks day-precise but settles a monthly average, while
+# KXHIGHAUS-26OCT11 really does settle one day. Anything covering a month or
+# longer counts as MONTHLY; only a genuinely per-day series is DAILY.
+DAILY = "daily"
+MONTHLY = "monthly"
+
 
 @dataclass(frozen=True)
 class SeriesInfo:
     ticker: str
     family: str
     city: str | None = None
+    cadence: str = MONTHLY
 
 
 SERIES = (
     SeriesInfo("KXRAINAUSM", "rain", "austin"), SeriesInfo("KXRAINNYCM", "rain", "nyc"), SeriesInfo("KXRAINCHIM", "rain", "chicago"),
     SeriesInfo("KXRAINLAXM", "rain", "los_angeles"), SeriesInfo("KXRAINMIAM", "rain", "miami"), SeriesInfo("KXRAINSFOM", "rain", "san_francisco"),
     SeriesInfo("KXRAINSEAM", "rain", "seattle"),
-    SeriesInfo("KXHIGHAUS", "heat", "austin"), SeriesInfo("KXHIGHNY", "heat", "nyc"), SeriesInfo("KXHIGHCHI", "heat", "chicago"),
-    SeriesInfo("KXHIGHLAX", "heat", "los_angeles"), SeriesInfo("KXHIGHMIA", "heat", "miami"),
-    SeriesInfo("KXAAAGASM", "gas"), SeriesInfo("KXWTI", "oil"), SeriesInfo("KXCPI", "inflation"), SeriesInfo("KXEGGS", "food_prices"),
+    SeriesInfo("KXHIGHAUS", "heat", "austin", DAILY), SeriesInfo("KXHIGHNY", "heat", "nyc", DAILY), SeriesInfo("KXHIGHCHI", "heat", "chicago", DAILY),
+    SeriesInfo("KXHIGHLAX", "heat", "los_angeles", DAILY), SeriesInfo("KXHIGHMIA", "heat", "miami", DAILY),
+    SeriesInfo("KXAAAGASM", "gas"), SeriesInfo("KXWTI", "oil", None, DAILY), SeriesInfo("KXCPI", "inflation"), SeriesInfo("KXEGGS", "food_prices"),
     SeriesInfo("KXFED", "interest_rates"), SeriesInfo("KXFEDDECISION", "interest_rates"),
     SeriesInfo("KXU3", "jobs"), SeriesInfo("KXPAYROLLS", "jobs"), SeriesInfo("KXGDP", "economy"),
 )
@@ -91,6 +100,17 @@ def series_for(families: set[str], city: str | None) -> list[str]:
 def family_of(ticker: str) -> str | None:
     series = _SERIES_BY_TICKER.get(ticker.split("-")[0])
     return series.family if series else None
+
+
+def cadence_of(ticker: str) -> str:
+    """How much one of this series' contracts covers. Unknown series read as monthly.
+
+    Monthly is the safe default: it under-scales a stake rather than over-scaling
+    it, risking too little cover instead of overspending on a per-day cadence
+    that was never there.
+    """
+    series = _SERIES_BY_TICKER.get(ticker.split("-")[0])
+    return series.cadence if series else MONTHLY
 
 
 def _fetch_or_empty(series_ticker: str, client: httpx.Client) -> list[KalshiMarket]:

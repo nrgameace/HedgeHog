@@ -71,7 +71,8 @@ Each candidate is the currently open contract of a recurring series: Kalshi list
 
 Plan every factor. For each one:
 - "ticker": one of that factor's candidates, copied exactly. Use "NONE" only if none of its candidates tracks the factor.
-- "side": YES or NO, whichever pays out when the business is hurt.
+- "direction": does this business get hurt when the underlying factor goes "up", "down", or "both" (either extreme hurts, the middle is fine)? This is about the business, not the market's wording: a firm holding cash in treasuries is hurt when rates go DOWN; an ice cream shop is "both", since a cold day kills demand and a 100F day empties the street.
+- "side": YES or NO, whichever pays out when the business is hurt. Where the market has a clear above/below threshold this is recomputed from "direction", so get the direction right first.
 - "amountUsd": the stake per trade in whole dollars. The backend scales all stakes down to fit the owner's budget, so never leave out a factor to save money.
 - "tradeMonths": the months of the year (0 = Jan ... 11 = Dec) when this risk matters and the trade is placed.
 - "hitMonths": the months of the past year, a subset of tradeMonths, when the event most likely happened, judged from the notes and the months where actual profit fell short of expected. Use [] when there is no evidence.
@@ -79,7 +80,7 @@ Plan every factor. For each one:
 - "riskExplanation": one sentence, at most 25 words, on what could hurt the owner's profit.
 - "rationale": one plain-English sentence, at most 25 words, on why this trade helps.
 
-Respond as JSON: {"plans": {"<factor slug>": {"ticker", "side", "amountUsd", "frequency", "tradeMonths", "hitMonths", "riskExplanation", "rationale"}}}."""
+Respond as JSON: {"plans": {"<factor slug>": {"ticker", "direction", "side", "amountUsd", "frequency", "tradeMonths", "hitMonths", "riskExplanation", "rationale"}}}."""
 
 
 def _format_profit_month(index: int, history: ProfitHistory, notes: dict[int, str]) -> str:

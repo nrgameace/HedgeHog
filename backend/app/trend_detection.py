@@ -9,8 +9,15 @@ from app.prompts import build_trend_detection_messages
 from app.questionnaire import QuestionnaireAnswers
 
 
-MIN_CATEGORY_CONFIDENCE = 20
-MAX_CATEGORIES = 10
+# Raised from 20. A bar of 20 is barely a filter - it admits anything the model
+# is 80% unsure of - and ten factors spread a small risk budget so thin that each
+# hedge covers almost nothing. The strongest few, hedged properly, beat a long
+# list hedged nominally.
+#
+# At 90 only the model's near-certain calls survive. On the ice cream demo that
+# is rainfall alone: its other factors scored 85, 70 and 65 and are all cut.
+MIN_CATEGORY_CONFIDENCE = 90
+MAX_CATEGORIES = 5
 TEXT_FIELDS = ("category", "label", "reasoning")
 
 TREND_DETECTION_SCHEMA = {
@@ -70,7 +77,7 @@ def _confident_unique(categories: list[HedgeableCategory]) -> list[HedgeableCate
     for category in sorted(categories, key=lambda category: category.confidence, reverse=True):
         if category.confidence >= MIN_CATEGORY_CONFIDENCE and category.category not in kept:
             kept[category.category] = category
-    return list(kept.values())
+    return list(kept.values())[:MAX_CATEGORIES]
 
 
 def detect_hedgeable_categories(answers: QuestionnaireAnswers, financials: list[dict[str, str]], *, config: AkamaiConfig | None = None, client: httpx.Client | None = None) -> list[HedgeableCategory]:

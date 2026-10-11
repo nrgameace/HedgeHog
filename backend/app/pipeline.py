@@ -1,7 +1,9 @@
 from dataclasses import replace
 
-from app.backtest import scale_amounts_to_budget
-from app.financial_history import build_profit_history, monthly_notes
+from app.backtest import cap_amount_to_shortfall, scale_amounts_to_budget
+from app.contract_period import stake_for_month
+from app.factor_relevance import drop_stale_factors
+from app.financial_history import ProfitHistory, build_profit_history, monthly_notes
 from app.hedge_report import build_hedge_report
 from app.kalshi_client import KalshiMarket
 from app.market_catalog import CITY_WEATHER_FAMILIES, load_candidate_markets, match_city, series_for
@@ -11,9 +13,27 @@ from app.risk_budget import parse_monthly_budget
 from app.trend_detection import HedgeableCategory, detect_hedgeable_categories
 
 
-def _fit_to_budget(bets: list[PlannedBet], risk_budget: str) -> list[PlannedBet]:
-    amounts = scale_amounts_to_budget([(bet.amount_usd, bet.trade_months) for bet in bets], parse_monthly_budget(risk_budget))
-    return [replace(bet, amount_usd=amount) for bet, amount in zip(bets, amounts)]
+def _price_for_side(market: KalshiMarket, side: str) -> float:
+    return market.yes_price if side == "YES" else 1 - market.yes_price
+
+
+def _fit_to_budget(bets: list[PlannedBet], risk_budget: str, history: ProfitHistory, markets: list[KalshiMarket]) -> list[PlannedBet]:
+    """Cap each stake to the shortfall it covers, then scale the set to the budget.
+
+    In that order: covering more than the hole wastes budget another risk could
+    have used, so the over-cover goes before anything is squeezed to fit.
+    """
+    by_ticker = {market.ticker: market for market in markets}
+    # Scale to the period first: a daily series needs about thirty contracts to
+    # cover a month, so a per-contract stake understates a month of cover
+    # thirtyfold. Then cap, so the payout still cannot exceed the actual hole.
+    period_matched = [replace(bet, amount_usd=stake_for_month(bet.amount_usd, bet.ticker)) for bet in bets]
+    capped = [
+        replace(bet, amount_usd=cap_amount_to_shortfall(bet.amount_usd, _price_for_side(by_ticker[bet.ticker], bet.side), bet.trade_months, history))
+        for bet in period_matched
+    ]
+    amounts = scale_amounts_to_budget([(bet.amount_usd, bet.trade_months) for bet in capped], parse_monthly_budget(risk_budget))
+    return [replace(bet, amount_usd=amount) for bet, amount in zip(capped, amounts)]
 
 
 def _no_candidate_reason(category: HedgeableCategory, city: str | None) -> str:
@@ -31,12 +51,19 @@ def _in_category_order(risks: list[UnhedgedRisk], categories: list[HedgeableCate
 
 def run_analysis(answers: QuestionnaireAnswers, rows: list[dict[str, str]]) -> dict:
     history = build_profit_history(rows)
-    categories = detect_hedgeable_categories(answers, rows)
+    proposed = detect_hedgeable_categories(answers, rows)
+    # A factor whose driver has not moved is not a live risk, whatever the model's
+    # confidence. Reported as unhedged rather than dropped silently, so the page
+    # can say the risk was considered and why it was set aside.
+    categories, stale = drop_stale_factors(rows, proposed)
+    stale_risks = [UnhedgedRisk(category=category.category, reason="driver_flat") for category in stale]
     if not categories:
-        return build_hedge_report(categories, [], [], [], history)
+        return build_hedge_report(proposed, [], _in_category_order(stale_risks, proposed), [], history)
     city = match_city(answers.location)
     markets = load_candidate_markets(series_for({category.market_family for category in categories}, city))
     candidates = candidates_by_category(categories, markets)
     sizing = plan_positions(answers, categories, history, monthly_notes(rows, history.simulated_year), candidates)
-    unhedged = _in_category_order(_risks_without_candidates(categories, candidates, city) + sizing.unhedged, categories)
-    return build_hedge_report(categories, _fit_to_budget(sizing.bets, answers.risk_budget), unhedged, markets, history)
+    unhedged = _in_category_order(
+        _risks_without_candidates(categories, candidates, city) + sizing.unhedged + stale_risks, proposed
+    )
+    return build_hedge_report(proposed, _fit_to_budget(sizing.bets, answers.risk_budget, history, markets), unhedged, markets, history)
