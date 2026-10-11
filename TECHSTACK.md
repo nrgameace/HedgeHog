@@ -17,7 +17,10 @@ sees the same ground truth. Project context/flow lives in
     `@testing-library/jest-dom` import — it's the one that gives
     TypeScript the matcher types under Vitest 5.x)
   - Run: `cd frontend && npm run test` (or `npx vitest run`)
-- **Hosting**: Vercel
+- **Hosting**: Vercel, configured by `vercel.json` at the repo root
+  (`cd frontend && npm ci`, `cd frontend && npm run build`, output
+  `frontend/dist`). Env vars on Vercel: `VITE_API_URL` (deployed backend)
+  and `VITE_USE_MOCK_API=true` until the backend is live.
 - **Linting**: oxlint (bundled by the Vite template)
 - **Charts**: Recharts
 - **Navigation**: no router — `App.tsx` holds the current screen in
@@ -167,3 +170,10 @@ sees the same ground truth. Project context/flow lives in
   which isn't hedgeable and lost the 2024 rain story).
 - 2026-10-10 — Model call 1's categories are passed into Model call 2,
   and every bet must name one of them.
+- 2026-10-10 — Model reliability: both calls JSON-schema enforced,
+  temperature 0 + seed 0, `max_tokens` 4096 (the server truncated at
+  512), 180 s timeout. Model 1 lists every factor with confidence (keep
+  ≥ 20) and a market family; Model 2 must answer every factor from its
+  own candidates or say NONE; unhedged risks are shown with a reason.
+  Weather markets only for the owner's city. Model 1 gets an evidence
+  digest + last 24 rows instead of 200 raw rows.

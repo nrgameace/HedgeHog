@@ -67,23 +67,33 @@ Wired end to end: the frontend calls the real backend by default, and
      shortfall below "expected" = the same month's mean in every other
      year). Two Scoops → 2024, Quillstack → 2025. Fails before any model
      call.
-  2. **Model call 1 — trend detection** (`trend_detection.py`) → hedgeable
-     categories. If none, return the report with no bets.
-  3. `market_catalog.py` + `kalshi_client.py` — open markets from 21 Kalshi
-     series via the public no-auth API, fetched in parallel with a 6 s
+  2. **Model call 1 — trend detection** (`trend_detection.py`) gets the
+     answers, an **evidence digest** (`evidence.py`: worst months vs. normal
+     with notes, the owner's notes timeline, price/rate column swings first)
+     and the last 24 CSV rows. It lists every plausible factor (up to 10)
+     with a 0–100 `confidence` and a `market_family`; factors under 20 are
+     dropped. If none remain, return the report with no bets.
+  3. `market_catalog.py` + `kalshi_client.py` — open markets only from the
+     Kalshi series matching those families; weather (rain/heat) only for
+     the owner's city (`match_city`: Austin, NYC, Chicago, LA, Miami, SF,
+     Seattle), left out entirely for other cities. Via the public no-auth API, fetched in parallel with a 6 s
      overall deadline (up to 5
      markets each, YES price 0.03–0.97). If Kalshi returns nothing at all,
      `FALLBACK_MARKETS` (clearly labelled mock) keeps the demo working.
-  4. **Model call 2 — position sizing** (`position_sizing.py`) gets Model
-     call 1's categories, the candidate markets, the simulated year's
-     profit + CSV notes and the risk budget; returns bets (category,
-     ticker, side, stake, trade months, months it paid out). Bets naming
-     an unknown ticker/category, duplicates or bad fields are dropped.
+  4. **Model call 2 — position sizing** (`position_sizing.py`) must plan
+     **every** factor that has candidates: each gets a ticker from its own
+     candidates or `NONE`, plus side, stake, trade months and months it
+     paid out. Factors with no candidates, `NONE`, invalid plans or a
+     ticker another factor already uses become `unhedgedRisks` with a
+     reason, shown on the results page under "Risks without a Kalshi market".
+  Both model calls are JSON-schema enforced (`response_format`), run at
+  temperature 0 with seed 0, request 4096 output tokens (the server's
+  default cap of 512 truncated replies) and allow 180 s per call.
   5. `risk_budget.py` + `backtest.py` — stakes are scaled so no month
      exceeds the budget; monthly net = `round(stake / price)` in hit
      months minus the stake in trade months (NO price = 1 − YES price).
   6. `hedge_report.py` — camelCase `HedgeReport`.
-  A full run takes ~35 s (two model calls; Kalshi adds well under 1 s).
+  A full run takes ~35–115 s depending on the shared model server's load.
   `backend/.env` holds the real Akamai credentials (gitignored);
   `backend/.env.example` is the template. CORS allows `ALLOWED_ORIGINS`
   (default `http://localhost:5173`).
@@ -106,7 +116,11 @@ Wired end to end: the frontend calls the real backend by default, and
   Build, test and demo against these instead of inventing data. Backend
   tests read these CSVs directly; frontend tests mirror the demo answers
   in `frontend/src/test/answers.ts`.
-- Not yet built: Akamai deployment wiring. Model output varies run to
+- `vercel.json` (repo root) builds `frontend/` and serves `frontend/dist`.
+  On Vercel set `VITE_API_URL` to the deployed backend, add the Vercel
+  domain to the backend's `ALLOWED_ORIGINS`, and set
+  `VITE_USE_MOCK_API=true` until the backend is deployed.
+- Not yet built: Akamai deployment wiring for the backend. Model output varies run to
   run (temperature 0.2), so the exact bets differ between demos.
 
 ## Parts of the project

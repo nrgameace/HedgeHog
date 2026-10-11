@@ -68,6 +68,7 @@ export function twoScoopsReport(): HedgeReport {
   return {
     simulatedPeriod: '2024',
     bets: TRADES.map(simulate),
+    unhedgedRisks: [],
     profitSeries: MONTHS.map((period, index) => ({ period, expected: EXPECTED[index], actual: ACTUAL_2024[index] })),
   }
 }

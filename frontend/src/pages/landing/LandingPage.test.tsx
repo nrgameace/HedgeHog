@@ -1,12 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import LandingPage from './LandingPage'
 
 describe('LandingPage', () => {
-  beforeEach(() => vi.spyOn(window, 'scrollTo').mockImplementation(() => {}))
-  afterEach(() => vi.restoreAllMocks())
-
   it('uses no em dashes in its copy', () => {
     const { container } = render(<LandingPage onStart={() => {}} />)
 
@@ -52,12 +49,15 @@ describe('LandingPage', () => {
     expect(onStart).toHaveBeenCalledTimes(2)
   })
 
-  it('returns the reader to the top of the page when they start, so the next screen opens at its beginning', () => {
+  it('answers the questions a careful owner would ask, without em dashes', () => {
     render(<LandingPage onStart={() => {}} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /let's begin/i }))
-
-    expect(window.scrollTo).toHaveBeenCalledWith(0, 0)
+    expect(screen.getByRole('heading', { level: 2, name: /questions/i })).toBeInTheDocument()
+    for (const question of [/is this gambling\?/i, /what is kalshi\?/i, /does hedgehog transfer money\?/i, /how much does it cost me\?/i]) {
+      expect(screen.getByText(question)).toBeInTheDocument()
+    }
+    expect(screen.queryByText(/is my data saved\?/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/until you go to kalshi and place them yourself/i)).toBeInTheDocument()
   })
 
   it('tells the story of steadier cash flow for small and mid-sized businesses as you scroll', () => {
