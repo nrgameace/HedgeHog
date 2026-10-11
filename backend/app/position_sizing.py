@@ -5,7 +5,7 @@ import httpx
 
 from app.akamai_client import AkamaiConfig, chat_complete
 from app.financial_history import ProfitHistory
-from app.hedge_side import DIRECTIONS, resolved_side
+from app.hedge_side import DIRECTIONS, can_hedge_direction, resolved_side
 from app.hit_months import credible_hit_months
 from app.kalshi_client import KalshiMarket
 from app.market_catalog import family_of
@@ -51,7 +51,13 @@ class PositionSizingError(Exception):
 
 
 def candidates_by_category(categories: list[HedgeableCategory], markets: list[KalshiMarket]) -> dict[str, list[KalshiMarket]]:
-    return {category.category: [market for market in markets if family_of(market.ticker) == category.market_family] for category in categories}
+    """Markets each factor may be hedged with: right family, and a usable strike shape.
+
+    Band markets are withheld rather than offered and corrected later, because
+    there is no side of a band that hedges a directional risk - see hedge_side.
+    """
+    hedgeable = [market for market in markets if can_hedge_direction(market.strike_type)]
+    return {category.category: [market for market in hedgeable if family_of(market.ticker) == category.market_family] for category in categories}
 
 
 def _plan_schema(markets: list[KalshiMarket]) -> dict:

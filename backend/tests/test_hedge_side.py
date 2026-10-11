@@ -1,6 +1,6 @@
 import pytest
 
-from app.hedge_side import derive_side, normalise_direction, resolved_side
+from app.hedge_side import can_hedge_direction, derive_side, normalise_direction, resolved_side
 
 
 class TestDeriveSide:
@@ -65,3 +65,20 @@ class TestResolvedSide:
 
     def test_agrees_with_the_model_when_the_model_was_right(self):
         assert resolved_side("up", "greater", "YES") == "YES"
+
+
+class TestCanHedgeDirection:
+    """A band pays inside a window, so no side of it expresses a one-way risk."""
+
+    @pytest.mark.parametrize("strike_type", ["greater", "less", "greater_or_equal", "less_or_equal"])
+    def test_thresholds_can(self, strike_type):
+        assert can_hedge_direction(strike_type) is True
+
+    @pytest.mark.parametrize("strike_type", ["between", "BETWEEN", " between "])
+    def test_bands_cannot(self, strike_type):
+        assert can_hedge_direction(strike_type) is False
+
+    @pytest.mark.parametrize("strike_type", ["custom", "", None, "structured"])
+    def test_unknown_shapes_pass_so_directional_markets_are_not_lost(self, strike_type):
+        """KXFEDDECISION is `custom` ("will the Fed hike 25bps?") and perfectly usable."""
+        assert can_hedge_direction(strike_type) is True

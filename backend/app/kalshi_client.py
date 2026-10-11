@@ -7,7 +7,16 @@ from dotenv import load_dotenv
 load_dotenv()
 
 KALSHI_API_BASE_URL = os.environ.get("KALSHI_API_BASE_URL", "https://api.elections.kalshi.com/trade-api/v2")
-MIN_TRADEABLE_PRICE = 0.03
+# Any positive price is tradeable. A floor of 0.03 looked like a junk filter and
+# was quietly hostile to the whole product: hedging a rare bad event means buying
+# a cheap contract, so the floor removed exactly the useful insurance. Every
+# non-band Austin temperature tail is priced at 0.01, so after band markets were
+# withheld the heat risk had no market left at all. At 0.01 a dollar of payout
+# costs a cent - 100:1 protection, the best leverage on the board.
+#
+# The ceiling stays. Near 1.00 a contract pays back barely more than it cost, so
+# it transfers almost no risk however much is spent on it.
+MIN_TRADEABLE_PRICE = 0.01
 MAX_TRADEABLE_PRICE = 0.97
 MAX_MARKETS_PER_SERIES = 5
 
