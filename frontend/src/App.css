@@ -9,7 +9,8 @@ main {
 .questionnaire,
 .table-scroll,
 .chart,
-.empty-plan {
+.empty-plan,
+.unhedged ul {
   background: #fcf8f1;
   border: 2px solid var(--hh-bark);
   border-radius: 0;
@@ -321,4 +322,32 @@ th {
   .results {
     animation: none;
   }
+}
+
+.unhedged ul {
+  list-style: none;
+  margin: 0 0 24px;
+  padding: 8px 24px;
+}
+
+.unhedged li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 0;
+}
+
+.unhedged li + li {
+  border-top: 1px solid var(--border);
+}
+
+.unhedged strong {
+  font-family: var(--hh-serif);
+  font-size: 1.05rem;
+  color: var(--text-h);
+}
+
+.unhedged-reason {
+  font-size: 0.9em;
+  font-style: italic;
 }
