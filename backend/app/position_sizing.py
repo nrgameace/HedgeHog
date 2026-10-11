@@ -6,13 +6,16 @@ import httpx
 from app.akamai_client import AkamaiConfig, chat_complete
 from app.financial_history import ProfitHistory
 from app.kalshi_client import KalshiMarket
+from app.market_catalog import family_of
 from app.model_json import parse_model_json
 from app.prompts import build_position_sizing_messages
 from app.questionnaire import QuestionnaireAnswers
 from app.trend_detection import HedgeableCategory
 
+NO_MARKET_TICKER = "NONE"
 SIDES = ("YES", "NO")
-TEXT_FIELDS = ("category", "ticker", "side", "frequency", "riskExplanation", "rationale")
+TEXT_FIELDS = ("ticker", "side", "frequency", "riskExplanation", "rationale")
+MONTHS_SCHEMA = {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 11}}
 
 
 @dataclass
@@ -28,8 +31,49 @@ class PlannedBet:
     rationale: str
 
 
+@dataclass
+class UnhedgedRisk:
+    category: str
+    reason: str
+    covered_by: str | None = None
+
+
+@dataclass
+class SizingResult:
+    bets: list[PlannedBet]
+    unhedged: list[UnhedgedRisk]
+
+
 class PositionSizingError(Exception):
     pass
+
+
+def candidates_by_category(categories: list[HedgeableCategory], markets: list[KalshiMarket]) -> dict[str, list[KalshiMarket]]:
+    return {category.category: [market for market in markets if family_of(market.ticker) == category.market_family] for category in categories}
+
+
+def _plan_schema(markets: list[KalshiMarket]) -> dict:
+    return {
+        "type": "object",
+        "properties": {
+            "ticker": {"enum": [market.ticker for market in markets] + [NO_MARKET_TICKER]},
+            "side": {"enum": list(SIDES)},
+            "amountUsd": {"type": "integer", "minimum": 1},
+            "frequency": {"type": "string"},
+            "tradeMonths": MONTHS_SCHEMA,
+            "hitMonths": MONTHS_SCHEMA,
+            "riskExplanation": {"type": "string"},
+            "rationale": {"type": "string"},
+        },
+        "required": ["ticker", "side", "amountUsd", "frequency", "tradeMonths", "hitMonths", "riskExplanation", "rationale"],
+        "additionalProperties": False,
+    }
+
+
+def position_sizing_schema(candidates: dict[str, list[KalshiMarket]]) -> dict:
+    sized = {slug: markets for slug, markets in candidates.items() if markets}
+    plans = {"type": "object", "properties": {slug: _plan_schema(markets) for slug, markets in sized.items()}, "required": list(sized), "additionalProperties": False}
+    return {"type": "object", "properties": {"plans": plans}, "required": ["plans"], "additionalProperties": False}
 
 
 def _valid_months(value: object) -> list[int]:
@@ -44,43 +88,49 @@ def _valid_amount(value: object) -> int | None:
     return max(round(value), 1)
 
 
-def _has_text_fields(item: dict) -> bool:
-    return all(isinstance(item.get(field), str) and item[field].strip() for field in TEXT_FIELDS)
-
-
-def _parse_bet(item: object, category_slugs: set[str], tickers: set[str], seen_tickers: set[str]) -> PlannedBet | None:
-    if not isinstance(item, dict) or not _has_text_fields(item):
+def _parse_bet(item: object, category: str, tickers: set[str]) -> PlannedBet | None:
+    if not isinstance(item, dict) or not all(isinstance(item.get(field), str) and item[field].strip() for field in TEXT_FIELDS):
         return None
-    ticker, amount, trade_months = item.get("ticker"), _valid_amount(item.get("amountUsd")), _valid_months(item.get("tradeMonths"))
-    if item.get("category") not in category_slugs or ticker not in tickers or ticker in seen_tickers:
-        return None
-    if item.get("side") not in SIDES or amount is None or not trade_months:
+    amount, trade_months = _valid_amount(item.get("amountUsd")), _valid_months(item.get("tradeMonths"))
+    if item["ticker"] not in tickers or item["side"] not in SIDES or amount is None or not trade_months:
         return None
     hit_months = [month for month in _valid_months(item.get("hitMonths")) if month in trade_months]
     return PlannedBet(
-        category=item["category"], ticker=ticker, side=item["side"], amount_usd=amount, frequency=item["frequency"].strip(),
+        category=category, ticker=item["ticker"], side=item["side"], amount_usd=amount, frequency=item["frequency"].strip(),
         trade_months=trade_months, hit_months=hit_months, risk_explanation=item["riskExplanation"].strip(), rationale=item["rationale"].strip(),
     )
 
 
-def _bets_from_reply(reply: str) -> list:
+def _plans_from_reply(reply: str) -> dict:
     try:
         parsed = parse_model_json(reply)
     except ValueError as exc:
         raise PositionSizingError(f"model reply was not valid JSON: {reply}") from exc
-    bets = parsed.get("bets") if isinstance(parsed, dict) else None
-    if not isinstance(bets, list):
-        raise PositionSizingError(f"model reply missing 'bets' list: {reply}")
-    return bets
+    plans = parsed.get("plans") if isinstance(parsed, dict) else None
+    if not isinstance(plans, dict):
+        raise PositionSizingError(f"model reply missing 'plans' object: {reply}")
+    return plans
 
 
-def plan_positions(answers: QuestionnaireAnswers, categories: list[HedgeableCategory], history: ProfitHistory, notes: dict[int, str], markets: list[KalshiMarket], *, config: AkamaiConfig | None = None, client: httpx.Client | None = None) -> list[PlannedBet]:
-    messages = build_position_sizing_messages(answers, categories, history, notes, markets)
-    reply = chat_complete(messages, config=config, client=client)
-    category_slugs, tickers = {category.category for category in categories}, {market.ticker for market in markets}
-    planned: list[PlannedBet] = []
-    for item in _bets_from_reply(reply):
-        bet = _parse_bet(item, category_slugs, tickers, {bet.ticker for bet in planned})
-        if bet is not None:
-            planned.append(bet)
-    return planned
+def _collect(plans: dict, sized: list[HedgeableCategory], candidates: dict[str, list[KalshiMarket]]) -> SizingResult:
+    result, owner_of_ticker = SizingResult(bets=[], unhedged=[]), {}
+    for category in sized:
+        bet = _parse_bet(plans.get(category.category), category.category, {market.ticker for market in candidates[category.category]})
+        if bet is None:
+            result.unhedged.append(UnhedgedRisk(category=category.category, reason="no_fit"))
+        elif bet.ticker in owner_of_ticker:
+            result.unhedged.append(UnhedgedRisk(category=category.category, reason="duplicate", covered_by=owner_of_ticker[bet.ticker]))
+        else:
+            owner_of_ticker[bet.ticker] = category.category
+            result.bets.append(bet)
+    return result
+
+
+def plan_positions(answers: QuestionnaireAnswers, categories: list[HedgeableCategory], history: ProfitHistory, notes: dict[int, str], candidates: dict[str, list[KalshiMarket]], *, config: AkamaiConfig | None = None, client: httpx.Client | None = None) -> SizingResult:
+    sized = [category for category in categories if candidates.get(category.category)]
+    if not sized:
+        return SizingResult(bets=[], unhedged=[])
+    sized_candidates = {category.category: candidates[category.category] for category in sized}
+    messages = build_position_sizing_messages(answers, sized, history, notes, sized_candidates)
+    reply = chat_complete(messages, response_schema=position_sizing_schema(sized_candidates), config=config, client=client)
+    return _collect(_plans_from_reply(reply), sized, sized_candidates)
