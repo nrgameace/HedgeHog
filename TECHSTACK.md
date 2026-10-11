@@ -22,7 +22,8 @@ sees the same ground truth. Project context/flow lives in
 - **Charts**: Recharts
 - **Navigation**: no router — `App.tsx` holds the current screen in
   React state (fits the no-persistence flow; no Vercel rewrites needed)
-- **Mock vs. real backend**: `VITE_USE_MOCK_API` (default mock) and
+- **Mock vs. real backend**: `VITE_USE_MOCK_API` (default **real
+  backend**; `true` shows the simulated Two Scoops report) and
   `VITE_API_URL` (default `http://localhost:8000`); see
   `frontend/.env.example`
 
@@ -31,13 +32,17 @@ sees the same ground truth. Project context/flow lives in
   - `answers` — JSON string, all free text (optional ones may be `""`):
     `{"businessDescription", "customers", "location",
     "operationalDependencies", "keyMaterials", "pastImpacts",
-    "timeOfYear", "lockedInCosts", "riskBudget"}`. None are required yet (simulated
-    data), so any may be `""`. Earnings/costs come from the CSV, not here.
+    "timeOfYear", "lockedInCosts", "riskBudget"}`. None are required, so
+    any may be `""`. Earnings/costs come from the CSV, not here.
     `lockedInCosts` lists things already protected — don't hedge them.
-    `riskBudget` is free text like "$800 a month"; size total bets to it
-    (the mock reads the first amount as monthly, "a year" ÷ 12).
-  - `financials` — the uploaded CSV file, **optional** for now (any
-    columns; frontend caps it at 5 MB). Omitted when the user skips it.
+    `riskBudget` is free text like "$800 a month"; the backend reads the
+    first amount as monthly ("a year" ÷ 12, "a quarter" ÷ 3) and scales
+    stakes so no month's total exceeds it.
+  - `financials` — the uploaded CSV, **required** (400 if missing). Needs
+    a month column (`month`/`date`/`period`; `YYYY-MM[-DD]`, `YYYY/MM` or `M/D/YYYY`) and a profit
+    column (`operating_income`, `net_income`, `profit` or
+    `gross_profit`), plus at least one complete calendar year; an
+    optional `notes` column feeds Model call 2. Max 5 MB.
 - Response: JSON matching `HedgeReport` in `frontend/src/types.ts`:
   `{"bets": [{risk: {factor, explanation}, market, ticker,
   side: "YES"|"NO", amountUsd (stake per trade), frequency (label),
@@ -45,6 +50,10 @@ sees the same ground truth. Project context/flow lives in
   stakes)}], "profitSeries": [{period, expected, actual}],
   "simulatedPeriod"}`. The frontend derives totals and variance
   mitigation from these.
+- Errors: 400 (bad answers, missing/unusable CSV — `detail` is shown to
+  the user), 413 (CSV too big), 500 (Akamai misconfigured), 502 (model
+  unavailable or replied in an unexpected shape; upstream details are
+  never leaked).
 
 ## Backend
 - **Language/framework**: Python + FastAPI
@@ -59,6 +68,11 @@ sees the same ground truth. Project context/flow lives in
     resolve from the repo root of `backend/`)
   - Run: `cd backend && ./venv/bin/pytest`
 - **Hosting**: Akamai
+- **CORS**: `ALLOWED_ORIGINS` env (comma-separated), default
+  `http://localhost:5173`. Add the Vercel URL when deploying.
+- **Run locally**: `.claude/launch.json` `backend` config (uvicorn on
+  8000 with `--env-file backend/.env`), or `cd backend &&
+  ./venv/bin/uvicorn app.main:app --reload`.
 
 ## Model / LLM
 - Hosted on Akamai; the backend queries it over HTTP at
@@ -74,14 +88,32 @@ sees the same ground truth. Project context/flow lives in
      parsed financials CSV (capped at 200 rows in the prompt), returns
      1–5 hedgeable categories as `{category, label, reasoning}`.
      Temperature 0.2. Request timeout 60s.
-  2. **Position sizing** — not built yet. Given a hedgeable category,
-     decide which Kalshi market/position to bet on and how much (uses
-     `riskBudget` to size total bets).
+  2. **Position sizing** — **implemented** (`backend/app/position_sizing.py`).
+     Input: Model call 1's categories, the open Kalshi candidates
+     (`ticker | title — subtitle | YES price`), the simulated year's 12
+     months of expected/actual profit with CSV notes, and the answers
+     (location, time of year, locked-in costs, budget). Output JSON:
+     `{"bets": [{category, ticker, side, amountUsd, frequency,
+     tradeMonths, hitMonths, riskExplanation, rationale}]}`. The prompt
+     says each candidate stands for its recurring series, so trade months
+     follow the business's risk season, not the contract's listed month.
+     Temperature 0.2. Invalid bets are dropped, not fatal.
+  - Shared: `app/model_json.py` strips code fences and parses replies for
+    both calls.
 
 ## External APIs
-- **Kalshi API**: real API calls for live market data. Trade placement
-  is simulated/paper for the hackathon demo — no real money moves, no
-  production trading keys needed yet.
+- **Kalshi API**: public market data, no auth —
+  `GET https://api.elections.kalshi.com/trade-api/v2/markets?series_ticker=<S>&status=open&limit=20`
+  (base URL overridable with `KALSHI_API_BASE_URL`). Price = 
+  `yes_ask_dollars`. Series offered (`app/market_catalog.py`): Austin,
+  NYC, Chicago, LA, Miami, SF and Seattle monthly rain (`KXRAIN…M`); Austin,
+  NYC, Chicago, LA and Miami daily highs (`KXHIGH…`); gas (`KXAAAGASM`),
+  oil (`KXWTI`), CPI, eggs, Fed rate/decision, unemployment, payrolls and
+  GDP. Up to 5 markets per series with YES price 0.03–0.97; series are
+  fetched in parallel (5 s per request, 6 s overall deadline); a failing
+  or late series is skipped; if all fail, a hardcoded
+  fallback list is used. Trade placement is simulated/paper — no real
+  money moves, no trading keys.
 
 ## Decisions log
 - 2026-10-10 — Frontend: Vite + React + TS over Next.js (simpler for a
@@ -112,10 +144,26 @@ sees the same ground truth. Project context/flow lives in
   Akamai trend-detection call. Response is `{"hedgeable_categories":
   [...]}` only, not the full `HedgeReport` the frontend's contract
   documents above — position sizing and Kalshi aren't built yet, so the
-  frontend should stay on `MOCK_API` until that lands.
+  frontend should stay on `MOCK_API` until that lands (superseded by the end-to-end hookup below).
 - 2026-10-10 — `chat_complete`'s blocking `httpx` call is run via
   FastAPI's `run_in_threadpool` from the async `/analyze` route, so one
   slow model call doesn't stall the event loop for other requests.
   Upstream errors are mapped to client-facing status codes
   (`AkamaiConfigError`→500, `AkamaiApiError`/`TrendDetectionError`→502)
   without leaking the raw upstream error body to the client.
+- 2026-10-10 — End-to-end hookup: `/analyze` returns the full
+  `HedgeReport`; frontend calls the real backend by default
+  (`VITE_USE_MOCK_API=true` for the offline mock).
+- 2026-10-10 — Kalshi candidates come live from the public API for a
+  curated list of series, with a hardcoded fallback so the demo never
+  breaks.
+- 2026-10-10 — Model call 2 picks which months each trade paid out
+  (grounded in CSV notes and profit dips); the backend computes payouts
+  deterministically from stake and price.
+- 2026-10-10 — The financials CSV is now required; the profit series is
+  auto-detected from it.
+- 2026-10-10 — Simulated year = the worst of the 3 most recent complete
+  calendar years (worst of all years picked COVID 2020 for Two Scoops,
+  which isn't hedgeable and lost the 2024 rain story).
+- 2026-10-10 — Model call 1's categories are passed into Model call 2,
+  and every bet must name one of them.

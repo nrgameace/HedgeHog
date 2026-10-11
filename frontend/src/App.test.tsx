@@ -5,6 +5,7 @@ import App from './App'
 import { twoScoopsReport } from './api/twoScoopsReport'
 
 vi.mock('./api/client', () => ({
+  MOCK_API: true,
   submitQuestionnaire: vi.fn(() => Promise.resolve(twoScoopsReport())),
 }))
 

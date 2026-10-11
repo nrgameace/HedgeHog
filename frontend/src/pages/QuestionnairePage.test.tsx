@@ -20,8 +20,8 @@ const QUESTIONS = [
   'How much budget would you have for risk mitigation?',
 ]
 
-function renderPage(submit = vi.fn().mockResolvedValue(report), onComplete = vi.fn()) {
-  render(<QuestionnairePage submit={submit} onComplete={onComplete} />)
+function renderPage(submit = vi.fn().mockResolvedValue(report), onComplete = vi.fn(), requireFinancials = false) {
+  render(<QuestionnairePage submit={submit} onComplete={onComplete} requireFinancials={requireFinancials} />)
   return { submit, onComplete }
 }
 
@@ -109,5 +109,23 @@ describe('QuestionnairePage', () => {
     fireEvent.click(screen.getByRole('button', { name: /analyze/i }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/status 500/)
+  })
+
+  it('asks for the CSV before submitting when the real backend needs it', () => {
+    const { submit } = renderPage(undefined, undefined, true)
+
+    fireEvent.click(screen.getByRole('button', { name: /analyze/i }))
+
+    expect(screen.getByText('Upload your financials CSV so we can simulate your trades.')).toBeInTheDocument()
+    expect(submit).not.toHaveBeenCalled()
+  })
+
+  it('submits with the CSV when the real backend needs it', () => {
+    const { submit } = renderPage(undefined, undefined, true)
+
+    fireEvent.change(screen.getByLabelText(/upload your financials/i), { target: { files: [csvFile] } })
+    fireEvent.click(screen.getByRole('button', { name: /analyze/i }))
+
+    expect(submit).toHaveBeenCalledWith(blankAnswers, csvFile)
   })
 })

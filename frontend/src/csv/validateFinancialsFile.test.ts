@@ -5,27 +5,35 @@ import { MAX_CSV_BYTES, validateFinancialsFile } from './validateFinancialsFile'
 const csvFile = (content: string, name = 'financials.csv') => new File([content], name, { type: 'text/csv' })
 
 describe('validateFinancialsFile', () => {
-  it('allows no file, since the upload is optional while we use simulated data', () => {
-    expect(validateFinancialsFile(null)).toBeNull()
+  it('allows no file when the upload is not required (mock mode)', () => {
+    expect(validateFinancialsFile(null, false)).toBeNull()
+  })
+
+  it('asks for the CSV when the upload is required (real backend)', () => {
+    expect(validateFinancialsFile(null, true)).toBe('Upload your financials CSV so we can simulate your trades.')
+  })
+
+  it('accepts a CSV when the upload is required', () => {
+    expect(validateFinancialsFile(csvFile('month,operating_income\n2024-01,1'), true)).toBeNull()
   })
 
   it('rejects files that are not CSVs', () => {
-    expect(validateFinancialsFile(csvFile('a,b', 'financials.txt'))).toMatch(/csv/i)
+    expect(validateFinancialsFile(csvFile('a,b', 'financials.txt'), false)).toMatch(/csv/i)
   })
 
   it('rejects empty files', () => {
-    expect(validateFinancialsFile(csvFile(''))).toMatch(/empty/i)
+    expect(validateFinancialsFile(csvFile(''), false)).toMatch(/empty/i)
   })
 
   it('rejects files over 5 MB', () => {
-    expect(validateFinancialsFile(csvFile('a'.repeat(MAX_CSV_BYTES + 1)))).toMatch(/5 MB/)
+    expect(validateFinancialsFile(csvFile('a'.repeat(MAX_CSV_BYTES + 1)), false)).toMatch(/5 MB/)
   })
 
   it('accepts a CSV of exactly 5 MB', () => {
-    expect(validateFinancialsFile(csvFile('a'.repeat(MAX_CSV_BYTES)))).toBeNull()
+    expect(validateFinancialsFile(csvFile('a'.repeat(MAX_CSV_BYTES)), false)).toBeNull()
   })
 
   it('accepts a CSV with an uppercase extension', () => {
-    expect(validateFinancialsFile(csvFile('date,revenue\n2026-01,1000', 'FINANCIALS.CSV'))).toBeNull()
+    expect(validateFinancialsFile(csvFile('date,revenue\n2026-01,1000', 'FINANCIALS.CSV'), false)).toBeNull()
   })
 })

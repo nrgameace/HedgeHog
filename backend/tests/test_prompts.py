@@ -1,17 +1,5 @@
-from app.prompts import TREND_DETECTION_SYSTEM_PROMPT, build_trend_detection_messages
-from app.questionnaire import QuestionnaireAnswers
-
-ANSWERS = QuestionnaireAnswers(
-    business_description="Ice cream shop with outdoor seating",
-    customers="Mostly tourists and families in summer",
-    location="Austin, TX",
-    operational_dependencies="Refrigeration, a delivery van, foot traffic",
-    key_materials="Dairy, sugar, electricity, gas for the van",
-    past_impacts="Rainy weekends, heat waves, gas price spikes",
-    time_of_year="June-August is tourist season; winter is slow",
-    locked_in_costs="Milk is on a fixed-price contract through 2027",
-    risk_budget="$500 a month",
-)
+from app.prompts import POSITION_SIZING_SYSTEM_PROMPT, TREND_DETECTION_SYSTEM_PROMPT, build_position_sizing_messages, build_trend_detection_messages
+from tests.sample_data import ANSWERS, CATEGORIES, HISTORY, MARKETS, NOTES
 
 
 def test_build_trend_detection_messages_starts_with_system_prompt():
@@ -76,3 +64,47 @@ def test_build_trend_detection_messages_notes_zero_rows_for_empty_financials():
     messages = build_trend_detection_messages(ANSWERS, [])
 
     assert "0 rows" in messages[1]["content"]
+
+
+def _position_sizing_user_content() -> str:
+    return build_position_sizing_messages(ANSWERS, CATEGORIES, HISTORY, NOTES, MARKETS)[1]["content"]
+
+
+def test_build_position_sizing_messages_starts_with_system_prompt():
+    messages = build_position_sizing_messages(ANSWERS, CATEGORIES, HISTORY, NOTES, MARKETS)
+
+    assert messages[0] == {"role": "system", "content": POSITION_SIZING_SYSTEM_PROMPT}
+
+
+def test_build_position_sizing_messages_includes_trend_detection_categories():
+    user_content = _position_sizing_user_content()
+
+    assert "rain | Rain | Rainy weekends empty the patio." in user_content
+    assert "gas_prices | Gas prices | The delivery van runs on gas." in user_content
+
+
+def test_build_position_sizing_messages_includes_candidate_markets_with_prices():
+    user_content = _position_sizing_user_content()
+
+    assert "KXRAINAUSM-26OCT-4 | Rain in Austin in Oct 2026? — Above 4 inches | YES price 0.20" in user_content
+    assert "KXAAAGASM-26OCT31-3.50" in user_content
+
+
+def test_build_position_sizing_messages_includes_simulated_year_and_notes():
+    user_content = _position_sizing_user_content()
+
+    assert "2024" in user_content
+    assert "May: expected 1000 / actual 1000 — Rainiest May in years: patio empty most weekends" in user_content
+    assert "Jan: expected 1000 / actual 1000\n" in user_content
+
+
+def test_build_position_sizing_messages_includes_budget_and_context_answers():
+    user_content = _position_sizing_user_content()
+
+    for answer in (ANSWERS.risk_budget, ANSWERS.location, ANSWERS.time_of_year, ANSWERS.locked_in_costs, ANSWERS.business_description):
+        assert answer in user_content
+
+
+def test_position_sizing_prompt_treats_candidates_as_recurring_series():
+    assert "recurring series" in POSITION_SIZING_SYSTEM_PROMPT
+    assert "not by the month or date in the contract's title" in POSITION_SIZING_SYSTEM_PROMPT

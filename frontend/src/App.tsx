@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import './App.css'
-import { submitQuestionnaire } from './api/client'
+import { MOCK_API, submitQuestionnaire } from './api/client'
 import PageHeader from './components/PageHeader'
 import LandingPage from './pages/landing/LandingPage'
 import QuestionnairePage from './pages/QuestionnairePage'
@@ -32,7 +32,7 @@ function App() {
     <>
       <PageHeader onHome={startOver} />
       <main>
-        {screen === 'questionnaire' && <QuestionnairePage submit={submitQuestionnaire} onComplete={showResults} />}
+        {screen === 'questionnaire' && <QuestionnairePage submit={submitQuestionnaire} onComplete={showResults} requireFinancials={!MOCK_API} />}
         {screen === 'results' && report && <ResultsPage report={report} onStartOver={startOver} />}
       </main>
     </>
