@@ -28,3 +28,5 @@ MARKETS = [
 HISTORY = ProfitHistory(simulated_year=2024, points=[ProfitPoint(period=label, expected=1000, actual=1000) for label in MONTH_LABELS])
 
 NOTES = {4: "Rainiest May in years: patio empty most weekends"}
+
+CANDIDATES = {"rain": [MARKETS[0]], "gas_prices": [MARKETS[1]]}

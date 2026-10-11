@@ -1,5 +1,5 @@
 from app.prompts import POSITION_SIZING_SYSTEM_PROMPT, TREND_DETECTION_SYSTEM_PROMPT, build_position_sizing_messages, build_trend_detection_messages
-from tests.sample_data import ANSWERS, CATEGORIES, HISTORY, MARKETS, NOTES
+from tests.sample_data import ANSWERS, CANDIDATES, CATEGORIES, HISTORY, NOTES
 
 
 def test_build_trend_detection_messages_starts_with_system_prompt():
@@ -55,27 +55,22 @@ def test_trend_detection_prompt_asks_for_every_factor_with_confidence():
 
 
 def _position_sizing_user_content() -> str:
-    return build_position_sizing_messages(ANSWERS, CATEGORIES, HISTORY, NOTES, MARKETS)[1]["content"]
+    return build_position_sizing_messages(ANSWERS, CATEGORIES, HISTORY, NOTES, CANDIDATES)[1]["content"]
 
 
 def test_build_position_sizing_messages_starts_with_system_prompt():
-    messages = build_position_sizing_messages(ANSWERS, CATEGORIES, HISTORY, NOTES, MARKETS)
+    messages = build_position_sizing_messages(ANSWERS, CATEGORIES, HISTORY, NOTES, CANDIDATES)
 
     assert messages[0] == {"role": "system", "content": POSITION_SIZING_SYSTEM_PROMPT}
 
 
-def test_build_position_sizing_messages_includes_trend_detection_categories():
+def test_build_position_sizing_messages_groups_candidates_under_each_factor():
     user_content = _position_sizing_user_content()
 
-    assert "rain | Rain | Rainy weekends empty the patio." in user_content
-    assert "gas_prices | Gas prices | The delivery van runs on gas." in user_content
-
-
-def test_build_position_sizing_messages_includes_candidate_markets_with_prices():
-    user_content = _position_sizing_user_content()
-
-    assert "KXRAINAUSM-26OCT-4 | Rain in Austin in Oct 2026? — Above 4 inches | YES price 0.20" in user_content
-    assert "KXAAAGASM-26OCT31-3.50" in user_content
+    rain_block = user_content.split("Factor: rain")[1].split("Factor: gas_prices")[0]
+    assert "Rain (confidence 90) — Rainy weekends empty the patio." in rain_block
+    assert "- KXRAINAUSM-26OCT-4 | Rain in Austin in Oct 2026? — Above 4 inches | YES price 0.20" in rain_block
+    assert "KXAAAGASM" not in rain_block
 
 
 def test_build_position_sizing_messages_includes_simulated_year_and_notes():
@@ -96,3 +91,8 @@ def test_build_position_sizing_messages_includes_budget_and_context_answers():
 def test_position_sizing_prompt_treats_candidates_as_recurring_series():
     assert "recurring series" in POSITION_SIZING_SYSTEM_PROMPT
     assert "not by the month or date in the contract's title" in POSITION_SIZING_SYSTEM_PROMPT
+
+
+def test_position_sizing_prompt_requires_every_factor_and_leaves_budget_to_the_backend():
+    assert "Plan every factor" in POSITION_SIZING_SYSTEM_PROMPT
+    assert "never leave out a factor to save money" in POSITION_SIZING_SYSTEM_PROMPT
