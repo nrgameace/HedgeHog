@@ -46,10 +46,6 @@ def recurring_frequency(market: KalshiMarket, frequency: str) -> str:
     return f"{frequency} - a new contract {cadence}" if cadence else frequency
 
 
-def _price_for_side(market: KalshiMarket, side: str) -> float:
-    return market.yes_price if side == "YES" else 1 - market.yes_price
-
-
 def _bet_entry(bet: PlannedBet, label: str, market: KalshiMarket) -> dict:
     return {
         "risk": {"factor": label, "explanation": bet.risk_explanation},
@@ -60,7 +56,7 @@ def _bet_entry(bet: PlannedBet, label: str, market: KalshiMarket) -> dict:
         "frequency": recurring_frequency(market, bet.frequency),
         "tradeMonths": bet.trade_months,
         "rationale": bet.rationale,
-        "monthlyNetUsd": simulate_monthly_net(bet.amount_usd, _price_for_side(market, bet.side), bet.trade_months, bet.hit_months),
+        "monthlyNetUsd": simulate_monthly_net(bet.amount_usd, market.price_for(bet.side), bet.trade_months, bet.hit_months),
     }
 
 

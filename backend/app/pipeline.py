@@ -29,10 +29,6 @@ def _with_forced_months(bets: list[PlannedBet]) -> list[PlannedBet]:
     return [replace(bet, trade_months=sorted(set(bet.trade_months) | set(DEMO_FORCED_TRADE_MONTHS))) for bet in bets]
 
 
-def _price_for_side(market: KalshiMarket, side: str) -> float:
-    return market.yes_price if side == "YES" else 1 - market.yes_price
-
-
 def _fit_to_budget(bets: list[PlannedBet], risk_budget: str, history: ProfitHistory, markets: list[KalshiMarket]) -> list[PlannedBet]:
     """Cap each stake to the shortfall it covers, then scale the set to the budget.
 
@@ -46,7 +42,7 @@ def _fit_to_budget(bets: list[PlannedBet], risk_budget: str, history: ProfitHist
     # left unused: the old path started from the model's guessed amount and could
     # only shrink it, so a $400 guess stayed $400 while $800 a month sat idle.
     wanted = [
-        (full_cover_stake(_price_for_side(by_ticker[bet.ticker], bet.side), bet.trade_months, history), bet.trade_months)
+        (full_cover_stake(by_ticker[bet.ticker].price_for(bet.side), bet.trade_months, history), bet.trade_months)
         for bet in bets
     ]
     amounts = scale_amounts_to_budget(wanted, parse_monthly_budget(risk_budget))

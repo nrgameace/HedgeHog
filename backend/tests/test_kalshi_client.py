@@ -94,3 +94,38 @@ def test_fetch_strips_markdown_emphasis_from_titles():
 
 def test_fetch_skips_market_with_non_text_title():
     assert fetch_open_markets("KXRAINAUSM", _respond_with([_market("BAD", title=None), _market("OK")]))[0].ticker == "OK"
+
+
+class TestPriceForSide:
+    """`1 - yes_ask` is the NO *bid* - what a seller receives - not what a buyer
+    pays. Inferring it ignored the spread: KXRAINAUSM-26OCT-4 quotes yes_ask 0.50
+    against a real no_ask of 0.67, and the November contract 0.60 against 0.98."""
+
+    @staticmethod
+    def _market(yes: float, no: float) -> KalshiMarket:
+        return KalshiMarket("KXRAINAUSM-26OCT-4", "Rain?", "", yes, no_price=no)
+
+    def test_the_yes_side_costs_the_yes_ask(self):
+        assert self._market(0.50, 0.67).price_for("YES") == 0.50
+
+    def test_the_no_side_costs_the_quoted_no_ask(self):
+        assert self._market(0.50, 0.67).price_for("NO") == 0.67
+
+    def test_it_does_not_mirror_the_yes_price(self):
+        market = self._market(0.60, 0.98)
+
+        assert market.price_for("NO") != 1 - market.yes_price
+        assert market.price_for("NO") == 0.98
+
+    def test_an_unquoted_no_side_has_no_price(self):
+        """So it can be refused rather than silently costed from the other side."""
+        assert self._market(0.50, 0.0).price_for("NO") == 0.0
+
+
+def test_fetch_reads_both_asks():
+    market = _market("KXRAINAUSM-26OCT-4", "0.5000")
+    market["no_ask_dollars"] = "0.6700"
+
+    parsed = fetch_open_markets("KXRAINAUSM", _respond_with([market]))[0]
+
+    assert (parsed.yes_price, parsed.no_price) == (0.5, 0.67)

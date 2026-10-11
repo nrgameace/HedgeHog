@@ -27,9 +27,23 @@ class KalshiMarket:
     title: str
     subtitle: str
     yes_price: float
+    # The NO ask, read from Kalshi rather than inferred. `1 - yes_ask` is the NO
+    # *bid* - what a seller receives - not what a buyer pays, so inferring it
+    # ignored the spread entirely: KXRAINAUSM-26OCT-4 quotes yes_ask 0.50 against
+    # a real no_ask of 0.67, and the November contract 0.60 against 0.98. Every
+    # NO trade was costed at roughly half its price.
+    no_price: float = 0.0
     # "greater" / "less" where Kalshi gives it. Lets app.hedge_side work out which
     # side pays in the bad state instead of trusting the model's choice.
     strike_type: str = ""
+
+    def price_for(self, side: str) -> float:
+        """What a contract on this side actually costs to buy."""
+        if side != "NO":
+            return self.yes_price
+        # A market with no quoted NO ask cannot be bought on that side; falling
+        # back to the mirrored yes price would resurrect the bug this replaces.
+        return self.no_price
 
 
 class KalshiApiError(Exception):
@@ -45,7 +59,12 @@ def _parse_market(item: object) -> KalshiMarket | None:
         return None
     try:
         title, subtitle = _plain_text(item["title"]), _plain_text(item.get("yes_sub_title") or "")
-        market = KalshiMarket(ticker=item["ticker"], title=title, subtitle=subtitle, yes_price=float(item["yes_ask_dollars"]), strike_type=item.get("strike_type") or "")
+        market = KalshiMarket(
+            ticker=item["ticker"], title=title, subtitle=subtitle,
+            yes_price=float(item["yes_ask_dollars"]),
+            no_price=float(item.get("no_ask_dollars") or 0.0),
+            strike_type=item.get("strike_type") or "",
+        )
     except (AttributeError, KeyError, TypeError, ValueError):
         return None
     return market if MIN_TRADEABLE_PRICE <= market.yes_price <= MAX_TRADEABLE_PRICE else None

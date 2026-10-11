@@ -104,11 +104,18 @@ def _parse_bet(item: object, category: str, markets: dict[str, KalshiMarket], hi
     if item["ticker"] not in markets or item["side"] not in SIDES or amount is None or not trade_months:
         return None
     claimed = [month for month in _valid_months(item.get("hitMonths")) if month in trade_months]
+    side = resolved_side(item.get("direction"), markets[item["ticker"]].strike_type, item["side"])
+    if markets[item["ticker"]].price_for(side) <= 0:
+        # Kalshi quotes plenty of strikes on one side only. Buying the other is
+        # not possible, and pricing it from the mirrored side is what made every
+        # NO trade look half price.
+        return None
+
     return PlannedBet(
         category=category, ticker=item["ticker"],
         # Recomputed from the stated direction where the strike shape allows it, so a
         # backwards side cannot quietly turn the hedge into a doubled-down bet.
-        side=resolved_side(item.get("direction"), markets[item["ticker"]].strike_type, item["side"]),
+        side=side,
         amount_usd=amount, frequency=item["frequency"].strip(), trade_months=trade_months,
         # Only months the business's own records corroborate, so the model cannot
         # mark its own backtest.

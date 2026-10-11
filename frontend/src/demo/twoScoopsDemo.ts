@@ -19,7 +19,7 @@ export const TWO_SCOOPS_ANSWERS: QuestionnaireAnswers = {
   timeOfYear:
     'June through August is over a third of our year, so a bad summer is a bad year. Winter is slow. Spring and December are big for catering.',
   lockedInCosts: 'Our dairy is on a fixed-price contract with a co-op through December 2026.',
-  riskBudget: 'About $800 a month.',
+  riskBudget: 'About $8,000 a month.',
 }
 
 export const TWO_SCOOPS_FINANCIALS_FILENAME = 'two-scoops-creamery-financials.csv'
