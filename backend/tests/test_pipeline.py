@@ -33,7 +33,8 @@ def fake_steps(monkeypatch):
 
     def fake_plan(answers, categories, history, notes, candidates):
         calls.update(history=history, notes=notes, candidates=candidates, sized=categories)
-        return SizingResult(bets=[RAIN], unhedged=[UnhedgedRisk(category="gas_prices", reason="no_fit")])
+        bets = [RAIN] if candidates["rain"] else []
+        return SizingResult(bets=bets, unhedged=[UnhedgedRisk(category="gas_prices", reason="no_fit")])
 
     monkeypatch.setattr("app.pipeline.detect_hedgeable_categories", lambda answers, rows: calls["categories"])
     monkeypatch.setattr("app.pipeline.load_candidate_markets", fake_load)
