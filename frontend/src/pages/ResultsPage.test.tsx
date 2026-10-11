@@ -88,6 +88,21 @@ describe('ResultsPage', () => {
     expect(screen.getByRole('heading', { name: /trade impact: will gas top/i })).toBeInTheDocument()
   })
 
+  it('explains a trade in plain English when asked, without changing the selected trade from the keyboard', () => {
+    renderPage()
+    const toggle = within(row(/rain in austin/i)).getByRole('button', { name: /what does this mean/i })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText(/pays out about/i)).not.toBeInTheDocument()
+
+    fireEvent.click(toggle)
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText(/pays out about \$1,000/i)).toBeInTheDocument()
+
+    fireEvent.keyDown(within(row(/gas top/i)).getByRole('button', { name: /what does this mean/i }), { key: 'Enter' })
+    expect(screen.queryByRole('heading', { name: /trade impact: will gas top/i })).not.toBeInTheDocument()
+  })
+
   it('starts over when asked', () => {
     const onStartOver = vi.fn()
     render(<ResultsPage report={report} onStartOver={onStartOver} />)
