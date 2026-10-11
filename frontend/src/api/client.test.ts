@@ -33,6 +33,15 @@ describe('submitQuestionnaire', () => {
     expect(result).toEqual(report)
   })
 
+  it('in real mode, calls the API on the same site by default', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ bets: [], unhedgedRisks: [], profitSeries: [], simulatedPeriod: '' }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await submitQuestionnaire(answers, file, { useMock: false })
+
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/analyze')
+  })
+
   it('in real mode, throws when the backend returns an error', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('boom', { status: 500 })))
 
