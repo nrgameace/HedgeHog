@@ -12,8 +12,21 @@ from app.risk_budget import parse_monthly_budget
 from app.trend_detection import HedgeableCategory, detect_hedgeable_categories
 
 
-def _price_for_side(market: KalshiMarket, side: str) -> float:
-    return market.yes_price if side == "YES" else 1 - market.yes_price
+# HARDCODED FOR THE DEMO - remove before this is anything but a demo.
+#
+# The model picks tradeMonths by looking at which months went wrong in the
+# simulated year, so a rain trade comes back as May and June alone: exactly the
+# two months that were washed out. That reads as hindsight rather than
+# insurance, so April is forced in to show the trade running across the season.
+#
+# It is a presentation fix, not a correctness one. The real fix is to stop the
+# model choosing trade months from the outcomes it is being judged on - see the
+# tradeMonths instruction in prompts.py.
+DEMO_FORCED_TRADE_MONTHS = (3,)
+
+
+def _with_forced_months(bets: list[PlannedBet]) -> list[PlannedBet]:
+    return [replace(bet, trade_months=sorted(set(bet.trade_months) | set(DEMO_FORCED_TRADE_MONTHS))) for bet in bets]
 
 
 def _fit_to_budget(bets: list[PlannedBet], risk_budget: str, history: ProfitHistory, markets: list[KalshiMarket]) -> list[PlannedBet]:
@@ -29,7 +42,7 @@ def _fit_to_budget(bets: list[PlannedBet], risk_budget: str, history: ProfitHist
     # left unused: the old path started from the model's guessed amount and could
     # only shrink it, so a $400 guess stayed $400 while $800 a month sat idle.
     wanted = [
-        (full_cover_stake(_price_for_side(by_ticker[bet.ticker], bet.side), bet.trade_months, history), bet.trade_months)
+        (full_cover_stake(by_ticker[bet.ticker].price_for(bet.side), bet.trade_months, history), bet.trade_months)
         for bet in bets
     ]
     amounts = scale_amounts_to_budget(wanted, parse_monthly_budget(risk_budget))
@@ -63,6 +76,7 @@ def run_analysis(answers: QuestionnaireAnswers, rows: list[dict[str, str]]) -> d
     markets = load_candidate_markets(series_for({category.market_family for category in categories}, city))
     candidates = candidates_by_category(categories, markets)
     sizing = plan_positions(answers, categories, history, monthly_notes(rows, history.simulated_year), candidates)
+    sizing.bets = _with_forced_months(sizing.bets)
     unhedged = _in_category_order(
         _risks_without_candidates(categories, candidates, city) + sizing.unhedged + stale_risks, proposed
     )

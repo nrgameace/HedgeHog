@@ -397,6 +397,25 @@ th {
   font-size: 0.8em;
 }
 
+/* Profit and hedge-effect are different scales, so they get a figure each
+   rather than one plot with an invisible second series. */
+.charts {
+  display: grid;
+  gap: 24px;
+}
+
+.chart figcaption {
+  margin: 0 8px 12px;
+  color: var(--text);
+  font-size: 1.05em;
+  line-height: 1.45;
+}
+
+.chart figcaption strong {
+  color: var(--text-h);
+  white-space: nowrap;
+}
+
 @keyframes page-rise {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: none; }

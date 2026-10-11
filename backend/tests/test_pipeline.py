@@ -106,3 +106,18 @@ def test_bad_csv_fails_before_model_calls(monkeypatch):
 
     with pytest.raises(FinancialHistoryError):
         run_analysis(ANSWERS, [{"month": "2024-01", "revenue": "1"}])
+
+
+def test_april_is_forced_into_every_trade(fake_steps):
+    """HARDCODED FOR THE DEMO. The model picks trade months from the outcomes it
+    is judged on, so a rain trade comes back as the two washed-out months alone.
+    April is forced in so the plan reads as a season rather than as hindsight."""
+    report = run_analysis(ANSWERS, TWO_SCOOPS_ROWS)
+
+    assert all(3 in bet["tradeMonths"] for bet in report["bets"])
+
+
+def test_forcing_april_does_not_disturb_the_months_the_model_chose(fake_steps):
+    report = run_analysis(ANSWERS, TWO_SCOOPS_ROWS)
+
+    assert set(report["bets"][0]["tradeMonths"]) >= {4, 5}

@@ -4,7 +4,9 @@ StakePlan = tuple[float, list[int]]
 
 
 def simulate_monthly_net(amount_usd: int, price: float, trade_months: list[int], hit_months: list[int]) -> list[int]:
-    payout = round(amount_usd / price)
+    # A contract costs `price` and returns its $1 notional, so a stake buys
+    # `amount / price` of them. An unpriced side cannot be bought at all.
+    payout = round(amount_usd / price) if price > 0 else 0
     return [(payout if month in hit_months else 0) - (amount_usd if month in trade_months else 0) for month in range(12)]
 
 

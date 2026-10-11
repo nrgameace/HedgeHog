@@ -38,7 +38,7 @@ def test_builds_bets_in_frontend_shape():
             "frequency": "Quarterly - a new contract each month",
             "tradeMonths": [0],
             "rationale": "Covers fuel spikes.",
-            "monthlyNetUsd": [30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            "monthlyNetUsd": [23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         },
     ]
 

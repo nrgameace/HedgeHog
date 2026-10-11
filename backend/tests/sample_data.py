@@ -21,8 +21,8 @@ CATEGORIES = [
 ]
 
 MARKETS = [
-    KalshiMarket(ticker="KXRAINAUSM-26OCT-4", title="Rain in Austin in Oct 2026?", subtitle="Above 4 inches", yes_price=0.2),
-    KalshiMarket(ticker="KXAAAGASM-26OCT31-3.50", title="Will average gas prices be above $3.50?", subtitle="Above $3.50", yes_price=0.3),
+    KalshiMarket(ticker="KXRAINAUSM-26OCT-4", title="Rain in Austin in Oct 2026?", subtitle="Above 4 inches", yes_price=0.2, no_price=0.85),
+    KalshiMarket(ticker="KXAAAGASM-26OCT31-3.50", title="Will average gas prices be above $3.50?", subtitle="Above $3.50", yes_price=0.3, no_price=0.75),
 ]
 
 # A washed-out May and June, mirroring demo-data/two-scoops-creamery: the point of
