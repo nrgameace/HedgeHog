@@ -35,11 +35,14 @@ CITY_ALIASES = {
     "austin": ("austin",),
     "nyc": ("new york", "nyc", "manhattan", "brooklyn"),
     "chicago": ("chicago",),
-    "los_angeles": ("los angeles", "la"),
+    "los_angeles": ("los angeles",),
     "miami": ("miami",),
     "san_francisco": ("san francisco", "sf", "bay area"),
     "seattle": ("seattle",),
 }
+
+# "LA" only as a capitalised abbreviation, and not as a state code after a comma ("New Orleans, LA").
+_LOS_ANGELES_ABBREVIATION = re.compile(r"(?<!,)(?<!,\s)\bLA\b")
 
 _SERIES_BY_TICKER = {series.ticker: series for series in SERIES}
 
@@ -76,6 +79,8 @@ def match_city(location: str) -> str | None:
             match = re.search(rf"\b{re.escape(alias)}\b", location, re.IGNORECASE)
             if match:
                 found.append((match.start(), city))
+    if abbreviation := _LOS_ANGELES_ABBREVIATION.search(location):
+        found.append((abbreviation.start(), "los_angeles"))
     return min(found)[1] if found else None
 
 

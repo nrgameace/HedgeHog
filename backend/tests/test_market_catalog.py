@@ -42,6 +42,11 @@ def test_only_weather_series_are_tied_to_a_city():
         ("Denver, CO", None),
         ("", None),
         ("Miami, but we ship to Seattle", "miami"),
+        ("Shreveport, LA", None),
+        ("New Orleans, LA", None),
+        ("La Jolla, CA", None),
+        ("Calle de la Paz, Austin TX", "austin"),
+        ("Downtown LA", "los_angeles"),
     ],
 )
 def test_match_city(location, city):
