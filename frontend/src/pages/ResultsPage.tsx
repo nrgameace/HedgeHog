@@ -1,12 +1,14 @@
-import { useState, type KeyboardEvent } from 'react'
+import { Fragment, useState, type KeyboardEvent } from 'react'
 
 import TradeImpactChart from '../components/TradeImpactChart'
+import { explainTrade } from '../report/explainTrade'
 import { combinedNet, stakedPerYear, varianceMitigation } from '../report/tradeImpact'
-import type { HedgeReport, UnhedgedRisk } from '../types'
+import type { Bet, HedgeReport, UnhedgedRisk } from '../types'
 
 type ResultsPageProps = { report: HedgeReport; onStartOver: () => void }
 
 const ALL_TRADES = -1
+const COLUMN_COUNT = 8
 
 const formatUsd = (value: number) => `$${Math.round(value).toLocaleString()}`
 const formatSignedUsd = (value: number) => `${value < 0 ? '−' : '+'}$${Math.abs(Math.round(value)).toLocaleString()}`
@@ -15,8 +17,49 @@ function formatPercent(fraction: number) {
   return `${tenths < 0 ? '−' : ''}${(Math.abs(tenths) / 10).toFixed(1)}%`
 }
 
+const explanationId = (ticker: string) => `explain-${ticker}`
+
+type ExplainToggleProps = { ticker: string; isOpen: boolean; onToggle: () => void }
+
+function ExplainToggle({ ticker, isOpen, onToggle }: ExplainToggleProps) {
+  return (
+    <button
+      type="button"
+      className="explain-toggle"
+      aria-expanded={isOpen}
+      aria-controls={explanationId(ticker)}
+      onClick={onToggle}
+      // Keep Enter/Space on this button from also selecting the row.
+      onKeyDown={(event) => event.stopPropagation()}
+    >
+      {isOpen ? 'Hide explanation' : 'What does this mean?'}
+    </button>
+  )
+}
+
+// Full-width row under a trade that spells it out in plain English.
+function TradeExplanation({ bet, period }: { bet: Bet; period: string }) {
+  return (
+    <tr className="trade-explainer" id={explanationId(bet.ticker)}>
+      <td colSpan={COLUMN_COUNT}>
+        <dl>
+          {explainTrade(bet, period).map(({ label, detail }) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{detail}</dd>
+            </div>
+          ))}
+        </dl>
+      </td>
+    </tr>
+  )
+}
+
 function HedgePlan({ report }: { report: HedgeReport }) {
   const [selected, setSelected] = useState(ALL_TRADES)
+  const [explained, setExplained] = useState<string[]>([])
+  const toggleExplanation = (ticker: string) =>
+    setExplained(explained.includes(ticker) ? explained.filter((open) => open !== ticker) : [...explained, ticker])
   const totalNet = combinedNet(report.bets.map((bet) => bet.monthlyNetUsd))
   const sum = (values: number[]) => values.reduce((total, value) => total + value, 0)
   const selectedBet = report.bets[selected]
@@ -56,19 +99,23 @@ function HedgePlan({ report }: { report: HedgeReport }) {
           </thead>
           <tbody>
             {report.bets.map((bet, index) => (
-              <tr key={bet.ticker} {...selectable(index)}>
-                <td className="risk">
-                  <strong>{bet.risk.factor}</strong>
-                  <span>{bet.risk.explanation}</span>
-                </td>
-                <td>{bet.market}</td>
-                <td>{bet.side}</td>
-                <td>{formatUsd(bet.amountUsd)}</td>
-                <td>{bet.frequency}</td>
-                <td>{bet.rationale}</td>
-                <td>{formatSignedUsd(sum(bet.monthlyNetUsd))}</td>
-                <td>{formatPercent(varianceMitigation(report.profitSeries, bet.monthlyNetUsd))}</td>
-              </tr>
+              <Fragment key={bet.ticker}>
+                <tr {...selectable(index)}>
+                  <td className="risk">
+                    <strong>{bet.risk.factor}</strong>
+                    <span>{bet.risk.explanation}</span>
+                    <ExplainToggle ticker={bet.ticker} isOpen={explained.includes(bet.ticker)} onToggle={() => toggleExplanation(bet.ticker)} />
+                  </td>
+                  <td>{bet.market}</td>
+                  <td>{bet.side}</td>
+                  <td>{formatUsd(bet.amountUsd)}</td>
+                  <td>{bet.frequency}</td>
+                  <td>{bet.rationale}</td>
+                  <td>{formatSignedUsd(sum(bet.monthlyNetUsd))}</td>
+                  <td>{formatPercent(varianceMitigation(report.profitSeries, bet.monthlyNetUsd))}</td>
+                </tr>
+                {explained.includes(bet.ticker) && <TradeExplanation bet={bet} period={report.simulatedPeriod} />}
+              </Fragment>
             ))}
           </tbody>
           <tfoot>

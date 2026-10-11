@@ -47,6 +47,21 @@ describe('QuestionnairePage', () => {
     expect(screen.queryByLabelText(/earnings/i)).not.toBeInTheDocument()
   })
 
+  it('shows how many of the ten questions are answered, counting the CSV upload', () => {
+    renderPage()
+    const progress = screen.getByRole('progressbar', { name: /questions answered/i })
+    expect(progress).toHaveAttribute('aria-valuenow', '0')
+    expect(progress).toHaveAttribute('aria-valuemax', '10')
+    expect(screen.getByText('0 of 10 answered')).toBeInTheDocument()
+
+    answer(/what does your business do/i, 'Ice cream shop')
+    answer(/who are your customers/i, '   ')
+    fireEvent.change(screen.getByLabelText(/upload your financials/i), { target: { files: [csvFile] } })
+
+    expect(progress).toHaveAttribute('aria-valuenow', '2')
+    expect(screen.getByText('2 of 10 answered')).toBeInTheDocument()
+  })
+
   it('has no sample-CSV download link (demo CSVs live in demo-data/)', () => {
     renderPage()
 
@@ -109,6 +124,27 @@ describe('QuestionnairePage', () => {
     fireEvent.click(screen.getByRole('button', { name: /analyze/i }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/status 500/)
+  })
+
+  it('swaps the form for the spinning hedgehog loading screen while the analysis runs', () => {
+    renderPage(vi.fn(() => new Promise<HedgeReport>(() => {})))
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /analyze/i }))
+
+    expect(screen.getByRole('status')).toHaveAccessibleName('Loading')
+    expect(screen.queryByRole('heading', { name: /about your business/i })).not.toBeInTheDocument()
+  })
+
+  it('brings the form back with the answers kept if the analysis fails', async () => {
+    renderPage(vi.fn().mockRejectedValue(new Error('The analysis failed (status 500).')))
+    answerRequired()
+
+    fireEvent.click(screen.getByRole('button', { name: /analyze/i }))
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/where is your business located/i)).toHaveValue('Austin, TX')
   })
 
   it('asks for the CSV before submitting when the real backend needs it', () => {

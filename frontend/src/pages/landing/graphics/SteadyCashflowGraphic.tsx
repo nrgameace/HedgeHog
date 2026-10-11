@@ -5,7 +5,9 @@ const HEDGED_PATH = 'M24 112 C 70 98, 112 120, 160 106 S 262 96, 318 104'
 function SteadyCashflowGraphic() {
   return (
     <svg className="hh-graphic hh-cashflow" viewBox="0 0 340 236" role="img" aria-label="Chart: revenue swings sharply without a hedge and stays steady with hedgehog">
-      <rect className="hh-cashflow__card" x="4" y="4" width="332" height="228" rx="18" />
+      {/* Same framed box as the other landing cards: a solid offset copy behind, then the bordered card */}
+      <rect className="hh-cashflow__card-shadow" x="6.5" y="6.5" width="331" height="227" />
+      <rect className="hh-cashflow__card" x="2" y="2" width="331" height="227" />
       {[58, 108, 158].map((y) => <line key={y} className="hh-cashflow__grid" x1="24" y1={y} x2="318" y2={y} />)}
       <path className="hh-cashflow__line hh-cashflow__line--unhedged" d={UNHEDGED_PATH} pathLength={1} />
       <path className="hh-cashflow__line hh-cashflow__line--hedged" d={HEDGED_PATH} pathLength={1} />
