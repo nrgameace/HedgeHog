@@ -18,6 +18,9 @@ class KalshiMarket:
     title: str
     subtitle: str
     yes_price: float
+    # "greater" / "less" where Kalshi gives it. Lets app.hedge_side work out which
+    # side pays in the bad state instead of trusting the model's choice.
+    strike_type: str = ""
 
 
 class KalshiApiError(Exception):
@@ -33,7 +36,7 @@ def _parse_market(item: object) -> KalshiMarket | None:
         return None
     try:
         title, subtitle = _plain_text(item["title"]), _plain_text(item.get("yes_sub_title") or "")
-        market = KalshiMarket(ticker=item["ticker"], title=title, subtitle=subtitle, yes_price=float(item["yes_ask_dollars"]))
+        market = KalshiMarket(ticker=item["ticker"], title=title, subtitle=subtitle, yes_price=float(item["yes_ask_dollars"]), strike_type=item.get("strike_type") or "")
     except (AttributeError, KeyError, TypeError, ValueError):
         return None
     return market if MIN_TRADEABLE_PRICE <= market.yes_price <= MAX_TRADEABLE_PRICE else None
