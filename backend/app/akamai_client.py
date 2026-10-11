@@ -8,6 +8,7 @@ load_dotenv()
 
 DEFAULT_REQUEST_TIMEOUT_SECONDS = 60.0
 FIXED_SEED = 0
+MAX_OUTPUT_TOKENS = 4096
 
 
 class AkamaiConfigError(Exception):
@@ -39,10 +40,23 @@ class AkamaiConfig:
 
 
 def _request_body(model: str, messages: list[dict[str, str]], temperature: float, response_schema: dict | None) -> dict:
-    body = {"model": model, "messages": messages, "temperature": temperature, "seed": FIXED_SEED}
+    body = {"model": model, "messages": messages, "temperature": temperature, "seed": FIXED_SEED, "max_tokens": MAX_OUTPUT_TOKENS}
     if response_schema is not None:
         body["response_format"] = {"type": "json_schema", "json_schema": {"name": "response", "schema": response_schema, "strict": True}}
     return body
+
+
+def _reply_content(response: httpx.Response) -> str:
+    try:
+        choice = response.json()["choices"][0]
+        content = choice["message"]["content"]
+    except (KeyError, IndexError, TypeError, ValueError) as exc:
+        raise AkamaiApiError(f"unexpected Akamai API response shape: {response.text}") from exc
+    if not isinstance(content, str):
+        raise AkamaiApiError(f"Akamai API returned non-string content: {content!r}")
+    if choice.get("finish_reason") == "length":
+        raise AkamaiApiError(f"model reply was cut off at the {MAX_OUTPUT_TOKENS}-token limit")
+    return content
 
 
 def chat_complete(messages: list[dict[str, str]], *, temperature: float = 0.0, response_schema: dict | None = None, config: AkamaiConfig | None = None, client: httpx.Client | None = None) -> str:
@@ -59,13 +73,7 @@ def chat_complete(messages: list[dict[str, str]], *, temperature: float = 0.0, r
             raise AkamaiApiError(f"request to Akamai failed: {exc}") from exc
         if response.status_code != 200:
             raise AkamaiApiError(f"Akamai API returned {response.status_code}: {response.text}")
-        try:
-            content = response.json()["choices"][0]["message"]["content"]
-        except (KeyError, IndexError, TypeError, ValueError) as exc:
-            raise AkamaiApiError(f"unexpected Akamai API response shape: {response.text}") from exc
-        if not isinstance(content, str):
-            raise AkamaiApiError(f"Akamai API returned non-string content: {content!r}")
-        return content
+        return _reply_content(response)
     finally:
         if owns_client:
             client.close()

@@ -45,6 +45,7 @@ def test_chat_complete_sends_expected_request():
         "messages": [{"role": "user", "content": "hi"}],
         "temperature": 0.0,
         "seed": 0,
+        "max_tokens": 4096,
     }
 
 
@@ -182,3 +183,14 @@ def test_chat_complete_sends_json_schema_response_format():
 
 def test_chat_complete_omits_response_format_without_schema():
     assert "response_format" not in _captured_body()
+
+
+def test_chat_complete_asks_for_enough_output_tokens():
+    assert _captured_body()["max_tokens"] == 4096
+
+
+def test_chat_complete_raises_when_the_reply_was_cut_off():
+    client = _client_with_response(200, json_body={"choices": [{"message": {"content": '{"a": "trunc'}, "finish_reason": "length"}]})
+
+    with pytest.raises(AkamaiApiError, match="cut off"):
+        chat_complete([{"role": "user", "content": "hi"}], config=FAKE_CONFIG, client=client)
