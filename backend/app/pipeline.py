@@ -1,6 +1,7 @@
 from dataclasses import replace
 
 from app.backtest import cap_amount_to_shortfall, scale_amounts_to_budget
+from app.contract_period import stake_for_month
 from app.factor_relevance import drop_stale_factors
 from app.financial_history import ProfitHistory, build_profit_history, monthly_notes
 from app.hedge_report import build_hedge_report
@@ -23,9 +24,13 @@ def _fit_to_budget(bets: list[PlannedBet], risk_budget: str, history: ProfitHist
     have used, so the over-cover goes before anything is squeezed to fit.
     """
     by_ticker = {market.ticker: market for market in markets}
+    # Scale to the period first: a daily series needs about thirty contracts to
+    # cover a month, so a per-contract stake understates a month of cover
+    # thirtyfold. Then cap, so the payout still cannot exceed the actual hole.
+    period_matched = [replace(bet, amount_usd=stake_for_month(bet.amount_usd, bet.ticker)) for bet in bets]
     capped = [
         replace(bet, amount_usd=cap_amount_to_shortfall(bet.amount_usd, _price_for_side(by_ticker[bet.ticker], bet.side), bet.trade_months, history))
-        for bet in bets
+        for bet in period_matched
     ]
     amounts = scale_amounts_to_budget([(bet.amount_usd, bet.trade_months) for bet in capped], parse_monthly_budget(risk_budget))
     return [replace(bet, amount_usd=amount) for bet, amount in zip(capped, amounts)]
