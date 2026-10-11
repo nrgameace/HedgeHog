@@ -533,3 +533,24 @@ th {
     animation: none;
   }
 }
+
+/* Demo helpers on the questionnaire */
+.attached-file {
+  font-size: 0.9em;
+  color: var(--text);
+}
+
+.attached-file span {
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.sample-offer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border: 2px solid var(--hh-bark);
+  background: var(--hh-paper);
+}

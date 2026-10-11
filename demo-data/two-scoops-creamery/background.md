@@ -55,7 +55,7 @@ business. Its financials are in [`financials.csv`](financials.csv): 129 months, 
 | Where is your business located? | Austin, TX |
 | What does your business rely on to operate day to day? | Freezers and refrigeration running 24/7, good patio weather, foot traffic, and our delivery van for pint deliveries and grocery runs. |
 | What materials or services do you use the most? | Dairy (milk and cream) is our biggest cost, then sugar, cones and pint containers. Electricity for the freezers and gas for the van. |
-| What outside events have hurt your business before, or worry you most? | Rainy weekends empty the patio — May and June 2024 cost us about a third of our patio sales. Extreme heat waves keep people inside and our electric bill doubles. Winter Storm Uri closed us for 6 days. Gas spikes and our variable-rate van loan going up also hurt. |
+| What outside events have hurt your business before, or worry you most? | Rainy weekends empty the patio. May and June 2024 cost us about a third of our patio sales. Extreme heat waves keep people inside and our electric bill doubles. Winter Storm Uri closed us for 6 days. Gas spikes and our variable-rate van loan going up also hurt. |
 | What times of year matter most to your business, and why? | June through August is over a third of our year, so a bad summer is a bad year. Winter is slow. Spring and December are big for catering. |
 | Are any of your costs locked in at a set price, like a fixed-price supplier contract, a fixed-rate loan or a long-term lease? | Our dairy is on a fixed-price contract with a co-op through December 2026. |
 | How much budget would you have for risk mitigation? | About $800 a month. |

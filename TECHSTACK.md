@@ -17,20 +17,18 @@ sees the same ground truth. Project context/flow lives in
     `@testing-library/jest-dom` import — it's the one that gives
     TypeScript the matcher types under Vitest 5.x)
   - Run: `cd frontend && npm run test` (or `npx vitest run`)
-- **Hosting**: Vercel, configured by `vercel.json` at the repo root
-  (`cd frontend && npm ci`, `cd frontend && npm run build`, output
-  `frontend/dist`). Env vars on Vercel: `VITE_API_URL` (deployed backend)
-  and `VITE_USE_MOCK_API=true` until the backend is live.
+- **Hosting**: Vercel, as the `frontend` service in the root
+  `vercel.json` (see Deployment below).
 - **Linting**: oxlint (bundled by the Vite template)
 - **Charts**: Recharts
 - **Navigation**: no router — `App.tsx` holds the current screen in
   React state (fits the no-persistence flow; no Vercel rewrites needed)
 - **Mock vs. real backend**: `VITE_USE_MOCK_API` (default **real
   backend**; `true` shows the simulated Two Scoops report) and
-  `VITE_API_URL` (default `http://localhost:8000`); see
-  `frontend/.env.example`
+  `VITE_API_URL` (default `/api`, same site; `vite.config.ts` proxies `/api`
+  to `http://localhost:8000` in dev); see `frontend/.env.example`
 
-## Frontend ↔ backend contract: `POST /analyze`
+## Frontend ↔ backend contract: `POST /api/analyze`
 - Request: `multipart/form-data` with
   - `answers` — JSON string, all free text (optional ones may be `""`):
     `{"businessDescription", "customers", "location",
@@ -45,7 +43,8 @@ sees the same ground truth. Project context/flow lives in
     a month column (`month`/`date`/`period`; `YYYY-MM[-DD]`, `YYYY/MM` or `M/D/YYYY`) and a profit
     column (`operating_income`, `net_income`, `profit` or
     `gross_profit`), plus at least one complete calendar year; an
-    optional `notes` column feeds Model call 2. Max 5 MB.
+    optional `notes` column feeds Model call 2. Max 4 MB (under
+    Vercel's 4.5 MB request-body limit).
 - Response: JSON matching `HedgeReport` in `frontend/src/types.ts`:
   `{"bets": [{risk: {factor, explanation}, market, ticker,
   side: "YES"|"NO", amountUsd (stake per trade), frequency (label),
@@ -70,9 +69,13 @@ sees the same ground truth. Project context/flow lives in
   - Config: `backend/pytest.ini` (sets `pythonpath = .` so `app` imports
     resolve from the repo root of `backend/`)
   - Run: `cd backend && ./venv/bin/pytest`
-- **Hosting**: Akamai
+- **Hosting**: Vercel, as the `backend` service in the root `vercel.json`
+  (FastAPI, entrypoint `app/main.py`, `maxDuration` 300 s). All routes
+  live under `/api` (`API_PREFIX` in `app/main.py`) to match the public
+  rewrite. The model itself stays hosted on Akamai.
 - **CORS**: `ALLOWED_ORIGINS` env (comma-separated), default
-  `http://localhost:5173`. Add the Vercel URL when deploying.
+  `http://localhost:5173`. Only needed when the frontend calls the
+  backend from a different origin; on Vercel they share one domain.
 - **Run locally**: `.claude/launch.json` `backend` config (uvicorn on
   8000 with `--env-file backend/.env`), or `cd backend &&
   ./venv/bin/uvicorn app.main:app --reload`.
@@ -177,3 +180,9 @@ sees the same ground truth. Project context/flow lives in
   own candidates or say NONE; unhedged risks are shown with a reason.
   Weather markets only for the owner's city. Model 1 gets an evidence
   digest + last 24 rows instead of 200 raw rows.
+- 2026-10-11 — Deploy frontend and backend as one Vercel project with two
+  services (root `vercel.json`): `frontend` at `/`, `backend` at
+  `/api/*`, no bindings. Backend routes moved under `/api`; frontend
+  calls `/api` on the same site (Vite dev proxy locally). Per-call model
+  timeout 140 s so both calls fit the 300 s function limit; CSV cap
+  4 MB for Vercel's 4.5 MB body limit.

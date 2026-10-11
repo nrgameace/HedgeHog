@@ -52,7 +52,7 @@ No spreadsheets, no trading experience, no manual market research — the busine
 | Backend | FastAPI (Python), test-driven with pytest |
 | Model | `Qwen/Qwen3.8-27B-FP8`, served via an OpenAI-compatible endpoint hosted on **Akamai** |
 | Markets | [Kalshi](https://kalshi.com) prediction markets for live pricing and paper trading |
-| Hosting | Frontend on Vercel, backend + model on Akamai |
+| Hosting | Frontend and backend on Vercel (one project, two services); model on Akamai |
 
 See [TECHSTACK.md](TECHSTACK.md) for the full, living record of stack decisions and the frontend↔backend API contract, and [CLAUDE.md](CLAUDE.md) for product context and the end-to-end flow.
 
@@ -76,7 +76,7 @@ npm install
 npm run dev
 ```
 
-The frontend calls the real backend at `http://localhost:8000` by default, so start the backend first. Upload a financials CSV with a month column and a profit column (the demo CSVs in `demo-data/` work as-is); an analysis takes about 30–40 seconds. To demo without a backend, set `VITE_USE_MOCK_API=true` (see `frontend/.env.example`) and the results page shows the simulated Two Scoops Creamery plan.
+The frontend calls the backend at `/api`, which `npm run dev` proxies to `http://localhost:8000`, so start the backend first. Upload a financials CSV with a month column and a profit column (the demo CSVs in `demo-data/` work as-is); an analysis takes about 1–2 minutes. To demo without a backend, set `VITE_USE_MOCK_API=true` (see `frontend/.env.example`) and the results page shows the simulated Two Scoops Creamery plan.
 
 **Tests**
 ```bash
@@ -91,7 +91,7 @@ hedgehog/
 ├── frontend/          React + TypeScript app (home → questionnaire → results)
 ├── backend/           FastAPI app (questionnaire ingestion, LLM calls)
 │   └── app/
-│       ├── routes/analyze.py      POST /analyze
+│       ├── routes/analyze.py      POST /api/analyze
 │       ├── pipeline.py            runs the whole analysis, step by step
 │       ├── questionnaire.py       parses the 9-question intake form
 │       ├── csv_parsing.py         financials CSV ingestion
@@ -118,7 +118,7 @@ Every demo runs against two fully hand-built fictional businesses in [`demo-data
 
 Built end-to-end for the hackathon demo:
 - ✅ Landing → questionnaire → results flow (frontend)
-- ✅ `POST /analyze` backend endpoint, fully tested
+- ✅ `POST /api/analyze` backend endpoint, fully tested
 - ✅ Real LLM call to the Akamai-hosted model: given a business's answers and financials, it identifies hedgeable risk categories with grounded reasoning
 - ✅ Live Kalshi market data from the public API, with a built-in fallback list if Kalshi is unreachable
 - ✅ Second LLM call for position sizing: the hedgeable categories from the first call go in, sized Kalshi trades (market, side, stake, months) come out, scaled to the owner's risk budget
