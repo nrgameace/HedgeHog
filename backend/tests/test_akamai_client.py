@@ -154,7 +154,7 @@ def test_chat_complete_uses_default_timeout_when_no_client_given(monkeypatch):
 
     chat_complete([{"role": "user", "content": "hi"}], config=FAKE_CONFIG)
 
-    assert captured_kwargs.get("timeout") == 60.0
+    assert captured_kwargs.get("timeout") == DEFAULT_REQUEST_TIMEOUT_SECONDS
 
 
 def _captured_body(**kwargs) -> dict:
