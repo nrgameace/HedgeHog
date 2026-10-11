@@ -33,7 +33,7 @@ def _parse_category(item: object) -> HedgeableCategory:
 
 def detect_hedgeable_categories(answers: QuestionnaireAnswers, financials: list[dict[str, str]], *, config: AkamaiConfig | None = None, client: httpx.Client | None = None) -> list[HedgeableCategory]:
     messages = build_trend_detection_messages(answers, financials)
-    reply = chat_complete(messages, temperature=0.2, config=config, client=client)
+    reply = chat_complete(messages, config=config, client=client)
     try:
         parsed = parse_model_json(reply)
     except ValueError as exc:

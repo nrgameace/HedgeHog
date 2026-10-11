@@ -43,7 +43,8 @@ def test_chat_complete_sends_expected_request():
     assert captured["json"] == {
         "model": "hackathon-chat",
         "messages": [{"role": "user", "content": "hi"}],
-        "temperature": 0.2,
+        "temperature": 0.0,
+        "seed": 0,
     }
 
 
@@ -153,3 +154,31 @@ def test_chat_complete_uses_default_timeout_when_no_client_given(monkeypatch):
     chat_complete([{"role": "user", "content": "hi"}], config=FAKE_CONFIG)
 
     assert captured_kwargs.get("timeout") == 60.0
+
+
+def _captured_body(**kwargs) -> dict:
+    captured = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["json"] = json.loads(request.content)
+        return httpx.Response(200, json={"choices": [{"message": {"content": "OK"}}]})
+
+    chat_complete([{"role": "user", "content": "hi"}], config=FAKE_CONFIG, client=httpx.Client(transport=httpx.MockTransport(handler)), **kwargs)
+    return captured["json"]
+
+
+def test_chat_complete_defaults_to_temperature_zero_and_fixed_seed():
+    body = _captured_body()
+
+    assert body["temperature"] == 0.0
+    assert body["seed"] == 0
+
+
+def test_chat_complete_sends_json_schema_response_format():
+    schema = {"type": "object"}
+
+    assert _captured_body(response_schema=schema)["response_format"] == {"type": "json_schema", "json_schema": {"name": "response", "schema": schema, "strict": True}}
+
+
+def test_chat_complete_omits_response_format_without_schema():
+    assert "response_format" not in _captured_body()

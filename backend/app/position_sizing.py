@@ -76,7 +76,7 @@ def _bets_from_reply(reply: str) -> list:
 
 def plan_positions(answers: QuestionnaireAnswers, categories: list[HedgeableCategory], history: ProfitHistory, notes: dict[int, str], markets: list[KalshiMarket], *, config: AkamaiConfig | None = None, client: httpx.Client | None = None) -> list[PlannedBet]:
     messages = build_position_sizing_messages(answers, categories, history, notes, markets)
-    reply = chat_complete(messages, temperature=0.2, config=config, client=client)
+    reply = chat_complete(messages, config=config, client=client)
     category_slugs, tickers = {category.category for category in categories}, {market.ticker for market in markets}
     planned: list[PlannedBet] = []
     for item in _bets_from_reply(reply):
