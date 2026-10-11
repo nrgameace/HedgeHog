@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 
+import LoadingScreen from '../components/LoadingScreen'
 import { validateFinancialsFile } from '../csv/validateFinancialsFile'
 import type { HedgeReport, QuestionnaireAnswers } from '../types'
 
@@ -83,35 +84,37 @@ function QuestionnairePage({ submit, onComplete, requireFinancials }: Questionna
     }
   }
 
+  // While analyzing, the form is hidden (not unmounted) so the answers are still there if it fails.
   return (
-    <form className="questionnaire" onSubmit={handleSubmit} noValidate>
-      <h1>About your business</h1>
-      <p>Tell us how your business works so we can find what's worth protecting.</p>
-      <QuestionnaireProgress answered={answeredCount} total={QUESTIONS.length + 1} />
+    <>
+      {isSubmitting && <LoadingScreen />}
+      <form className="questionnaire" onSubmit={handleSubmit} noValidate hidden={isSubmitting}>
+        <h1>About your business</h1>
+        <p>Tell us how your business works so we can find what's worth protecting.</p>
+        <QuestionnaireProgress answered={answeredCount} total={QUESTIONS.length + 1} />
 
-      {QUESTIONS.map((question) => (
-        <TextQuestion
-          key={question.id}
-          question={question}
-          value={answers[question.id]}
-          onChange={(value) => setAnswers({ ...answers, [question.id]: value })}
-        />
-      ))}
+        {QUESTIONS.map((question) => (
+          <TextQuestion
+            key={question.id}
+            question={question}
+            value={answers[question.id]}
+            onChange={(value) => setAnswers({ ...answers, [question.id]: value })}
+          />
+        ))}
 
-      <div className="field">
-        <label htmlFor="financials">
-          Upload your financials (CSV, max 5 MB)
-        </label>
-        <input id="financials" type="file" accept=".csv,text/csv" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
-        {fileError && <p className="field-error">{fileError}</p>}
-      </div>
+        <div className="field">
+          <label htmlFor="financials">
+            Upload your financials (CSV, max 5 MB)
+          </label>
+          <input id="financials" type="file" accept=".csv,text/csv" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
+          {fileError && <p className="field-error">{fileError}</p>}
+        </div>
 
-      {submitError && <p className="field-error" role="alert">{submitError}</p>}
+        {submitError && <p className="field-error" role="alert">{submitError}</p>}
 
-      <button type="submit" className="primary" disabled={isSubmitting}>
-        {isSubmitting ? 'Analyzing…' : 'Analyze my risks'}
-      </button>
-    </form>
+        <button type="submit" className="primary" disabled={isSubmitting}>Analyze my risks</button>
+      </form>
+    </>
   )
 }
 
