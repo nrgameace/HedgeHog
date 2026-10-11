@@ -19,7 +19,7 @@ List every factor that could plausibly move this business's revenue or costs: we
 For each factor give:
 - "category": a short snake_case slug, unique within your answer.
 - "label": a short human-readable name.
-- "reasoning": one or two sentences citing the owner's answers or the evidence.
+- "reasoning": one sentence, at most 25 words, citing the owner's answers or the evidence.
 - "confidence": an integer from 0 to 100 for how likely this factor really moves this business's profit. Be honest: low numbers are fine.
 - "market_family": the kind of prediction market that could hedge it. Use "rain" or "heat" for local weather, "gas" for gasoline, "oil" for crude oil, "inflation" for consumer prices, "food_prices" for food and ingredient prices, "interest_rates" for loan or savings rates, "jobs" for the labor market, "economy" for GDP and consumer demand, and "none" when no such market fits (for example GPU prices or regulation).
 
@@ -76,8 +76,8 @@ Plan every factor. For each one:
 - "tradeMonths": the months of the year (0 = Jan ... 11 = Dec) when this risk matters and the trade is placed.
 - "hitMonths": the months of the past year, a subset of tradeMonths, when the event most likely happened, judged from the notes and the months where actual profit fell short of expected. Use [] when there is no evidence.
 - "frequency": a short label such as "Monthly, Apr–Jun" or "Quarterly".
-- "riskExplanation": one short sentence on what could hurt the owner's profit.
-- "rationale": one plain-English sentence on why this trade helps.
+- "riskExplanation": one sentence, at most 25 words, on what could hurt the owner's profit.
+- "rationale": one plain-English sentence, at most 25 words, on why this trade helps.
 
 Respond as JSON: {"plans": {"<factor slug>": {"ticker", "side", "amountUsd", "frequency", "tradeMonths", "hitMonths", "riskExplanation", "rationale"}}}."""
 
