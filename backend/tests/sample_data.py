@@ -25,6 +25,16 @@ MARKETS = [
     KalshiMarket(ticker="KXAAAGASM-26OCT31-3.50", title="Will average gas prices be above $3.50?", subtitle="Above $3.50", yes_price=0.3),
 ]
 
-HISTORY = ProfitHistory(simulated_year=2024, points=[ProfitPoint(period=label, expected=1000, actual=1000) for label in MONTH_LABELS])
+# A washed-out May and June, mirroring demo-data/two-scoops-creamery: the point of
+# a simulated year is that something went wrong in it. A flat year corroborates no
+# hit months at all (see app/hit_months.py), which makes it useless as a fixture.
+_WASHED_OUT_MONTHS = (4, 5)
+HISTORY = ProfitHistory(
+    simulated_year=2024,
+    points=[
+        ProfitPoint(period=label, expected=1000, actual=400 if month in _WASHED_OUT_MONTHS else 1000)
+        for month, label in enumerate(MONTH_LABELS)
+    ],
+)
 
 NOTES = {4: "Rainiest May in years: patio empty most weekends"}

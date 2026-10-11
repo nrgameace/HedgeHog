@@ -69,7 +69,8 @@ Each candidate is the currently open contract of a recurring series: Kalshi list
 For each category worth hedging, choose ONE market from the candidate list:
 - Use only a "category" slug from the categories given, at most one bet per category.
 - Use only a "ticker" from the candidate list, copied exactly.
-- Pick the "side" (YES or NO) that pays out when the business is hurt.
+- "direction": whether this business is hurt when the underlying factor goes "up", "down", or "both" (either extreme hurts while the middle is fine). This is about the business, not the market's wording: a shop holding cash in treasuries is hurt when rates go DOWN; an ice cream shop is "both", since a cold day kills demand and a 100F day empties the street.
+- Pick the "side" (YES or NO) that pays out when the business is hurt. Where the market has a clear above/below threshold this is recomputed from "direction", so get the direction right first.
 - Keep the total stake placed in any single month within the owner's monthly risk budget.
 - "tradeMonths": the months of the year (0 = Jan ... 11 = Dec) when this risk matters and the trade is placed.
 - "hitMonths": the months of the past year, a subset of tradeMonths, when the event most likely happened, judged from the notes and the months where actual profit fell short of expected. Use [] when there is no evidence.
@@ -80,7 +81,7 @@ Skip a category if no candidate market fits it.
 
 Respond with ONLY a single JSON object. No markdown code fences, no explanation before or after it. Match exactly this shape:
 
-{"bets": [{"category": "<slug>", "ticker": "<ticker>", "side": "YES", "amountUsd": 100, "frequency": "<label>", "tradeMonths": [0], "hitMonths": [], "riskExplanation": "<sentence>", "rationale": "<sentence>"}]}"""
+{"bets": [{"category": "<slug>", "ticker": "<ticker>", "direction": "up", "side": "YES", "amountUsd": 100, "frequency": "<label>", "tradeMonths": [0], "hitMonths": [], "riskExplanation": "<sentence>", "rationale": "<sentence>"}]}"""
 
 
 def _format_profit_month(index: int, history: ProfitHistory, notes: dict[int, str]) -> str:
