@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { blankAnswers, iceCreamShop } from '../test/answers'
-import { submitQuestionnaire } from './client'
+import { AnalysisUnavailableError, submitQuestionnaire } from './client'
 import { twoScoopsReport } from './twoScoopsReport'
 
 const answers = iceCreamShop
@@ -33,6 +33,15 @@ describe('submitQuestionnaire', () => {
     expect(result).toEqual(report)
   })
 
+  it('in real mode, calls the API on the same site by default', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ bets: [], unhedgedRisks: [], profitSeries: [], simulatedPeriod: '' }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await submitQuestionnaire(answers, file, { useMock: false })
+
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/analyze')
+  })
+
   it('in real mode, throws when the backend returns an error', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('boom', { status: 500 })))
 
@@ -44,6 +53,24 @@ describe('submitQuestionnaire', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, { status: 400 })))
 
     await expect(submitQuestionnaire(answers, file, { useMock: false, apiUrl: 'http://api.test' })).rejects.toThrow('The financials CSV needs a profit column.')
+  })
+
+  it('in real mode, reports the service as unavailable when the backend is unreachable or broken', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
+    await expect(submitQuestionnaire(answers, file, { useMock: false, apiUrl: 'http://api.test' })).rejects.toBeInstanceOf(AnalysisUnavailableError)
+
+    const misconfigured = new Response(JSON.stringify({ detail: 'the analysis service is misconfigured' }), { status: 500 })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(misconfigured))
+    await expect(submitQuestionnaire(answers, file, { useMock: false, apiUrl: 'http://api.test' })).rejects.toThrow(AnalysisUnavailableError)
+  })
+
+  it('in real mode, treats a rejected upload as a normal error, not an unavailable service', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: 'bad csv' }), { status: 400 })))
+
+    const error = await submitQuestionnaire(answers, file, { useMock: false, apiUrl: 'http://api.test' }).catch((e: unknown) => e)
+
+    expect(error).toBeInstanceOf(Error)
+    expect(error).not.toBeInstanceOf(AnalysisUnavailableError)
   })
 
   it('in real mode, sends only the answers when no file was uploaded', async () => {

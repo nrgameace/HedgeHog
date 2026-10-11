@@ -11,7 +11,7 @@ from app.trend_detection import TrendDetectionError
 
 router = APIRouter()
 
-MAX_FINANCIALS_CSV_SIZE_BYTES = 5 * 1024 * 1024
+MAX_FINANCIALS_CSV_SIZE_BYTES = 4 * 1024 * 1024
 _CHUNK_SIZE_BYTES = 64 * 1024
 MISSING_FINANCIALS_MESSAGE = "Upload your financials CSV so we can simulate your trades."
 

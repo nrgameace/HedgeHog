@@ -4,14 +4,38 @@
     {
       "name": "frontend",
       "runtimeExecutable": "frontend/node_modules/.bin/vite",
-      "runtimeArgs": ["frontend", "--port", "5173", "--strictPort"],
+      "runtimeArgs": [
+        "frontend",
+        "--port",
+        "5173",
+        "--strictPort"
+      ],
       "port": 5173
     },
     {
       "name": "backend",
       "runtimeExecutable": "backend/venv/bin/uvicorn",
-      "runtimeArgs": ["app.main:app", "--port", "8000", "--app-dir", "backend", "--env-file", "backend/.env"],
+      "runtimeArgs": [
+        "app.main:app",
+        "--port",
+        "8000",
+        "--app-dir",
+        "backend",
+        "--env-file",
+        "backend/.env"
+      ],
       "port": 8000
+    },
+    {
+      "name": "vercel",
+      "runtimeExecutable": "/opt/homebrew/bin/vercel",
+      "runtimeArgs": [
+        "dev",
+        "--listen",
+        "3000",
+        "--yes"
+      ],
+      "port": 3000
     }
   ]
 }
