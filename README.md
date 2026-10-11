@@ -14,6 +14,8 @@ Hedgehog turns the outside forces that move a small business's revenue — weath
 [![Model](https://img.shields.io/badge/Model-Qwen3%20via%20Akamai-6B4F3F?style=flat-square)](#tech-stack)
 [![Markets](https://img.shields.io/badge/Markets-Kalshi-1F6FEB?style=flat-square)](#tech-stack)
 
+**[Try the live demo → hedge-hog-sigma.vercel.app](https://hedge-hog-sigma.vercel.app)**
+
 </div>
 
 <br />
