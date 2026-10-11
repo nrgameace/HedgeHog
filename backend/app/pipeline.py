@@ -1,6 +1,7 @@
 from dataclasses import replace
 
 from app.backtest import cap_amount_to_shortfall, scale_amounts_to_budget
+from app.factor_relevance import drop_stale_factors
 from app.financial_history import ProfitHistory, build_profit_history, monthly_notes
 from app.hedge_report import build_hedge_report
 from app.kalshi_client import KalshiMarket
@@ -45,12 +46,19 @@ def _in_category_order(risks: list[UnhedgedRisk], categories: list[HedgeableCate
 
 def run_analysis(answers: QuestionnaireAnswers, rows: list[dict[str, str]]) -> dict:
     history = build_profit_history(rows)
-    categories = detect_hedgeable_categories(answers, rows)
+    proposed = detect_hedgeable_categories(answers, rows)
+    # A factor whose driver has not moved is not a live risk, whatever the model's
+    # confidence. Reported as unhedged rather than dropped silently, so the page
+    # can say the risk was considered and why it was set aside.
+    categories, stale = drop_stale_factors(rows, proposed)
+    stale_risks = [UnhedgedRisk(category=category.category, reason="driver_flat") for category in stale]
     if not categories:
-        return build_hedge_report(categories, [], [], [], history)
+        return build_hedge_report(proposed, [], _in_category_order(stale_risks, proposed), [], history)
     city = match_city(answers.location)
     markets = load_candidate_markets(series_for({category.market_family for category in categories}, city))
     candidates = candidates_by_category(categories, markets)
     sizing = plan_positions(answers, categories, history, monthly_notes(rows, history.simulated_year), candidates)
-    unhedged = _in_category_order(_risks_without_candidates(categories, candidates, city) + sizing.unhedged, categories)
-    return build_hedge_report(categories, _fit_to_budget(sizing.bets, answers.risk_budget, history, markets), unhedged, markets, history)
+    unhedged = _in_category_order(
+        _risks_without_candidates(categories, candidates, city) + sizing.unhedged + stale_risks, proposed
+    )
+    return build_hedge_report(proposed, _fit_to_budget(sizing.bets, answers.risk_budget, history, markets), unhedged, markets, history)

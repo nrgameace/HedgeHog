@@ -33,12 +33,13 @@ def test_keeps_categories_at_the_confidence_threshold(monkeypatch):
     assert [category.category for category in _detect_with_items(monkeypatch, low, edge)] == ["heat"]
 
 
-def test_minimum_confidence_is_twenty():
-    assert MIN_CATEGORY_CONFIDENCE == 20
+def test_minimum_confidence_keeps_only_the_model_s_stronger_calls():
+    """Raised from 20: that bar admitted anything the model was 80% unsure of."""
+    assert MIN_CATEGORY_CONFIDENCE == 55
 
 
 def test_sorts_by_confidence_highest_first(monkeypatch):
-    items = [{**RAIN, "category": "gas", "confidence": 40}, RAIN, {**RAIN, "category": "rates", "confidence": 60}]
+    items = [{**RAIN, "category": "gas", "confidence": 60}, RAIN, {**RAIN, "category": "rates", "confidence": 80}]
 
     assert [category.category for category in _detect_with_items(monkeypatch, *items)] == ["rain", "rates", "gas"]
 
