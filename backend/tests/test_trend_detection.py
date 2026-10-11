@@ -77,11 +77,12 @@ def test_detect_hedgeable_categories_strips_fence_without_language_tag(monkeypat
     assert result == [HedgeableCategory(category="rain", label="Rain", reasoning="Owner says rainy days hurt ice cream sales.")]
 
 
-def test_detect_hedgeable_categories_forwards_temperature_config_and_client(monkeypatch):
+def test_detect_hedgeable_categories_forwards_config_and_client_with_deterministic_defaults(monkeypatch):
     captured = {}
 
-    def fake_chat_complete(messages, *, temperature=None, config=None, client=None):
-        captured["temperature"] = temperature
+    def fake_chat_complete(messages, **kwargs):
+        captured["kwargs"] = kwargs
+        config, client = kwargs.get("config"), kwargs.get("client")
         captured["config"] = config
         captured["client"] = client
         return VALID_REPLY
@@ -92,6 +93,6 @@ def test_detect_hedgeable_categories_forwards_temperature_config_and_client(monk
 
     detect_hedgeable_categories(ANSWERS, [], config=sentinel_config, client=sentinel_client)
 
-    assert captured["temperature"] == 0.2
+    assert "temperature" not in captured["kwargs"]
     assert captured["config"] is sentinel_config
     assert captured["client"] is sentinel_client
