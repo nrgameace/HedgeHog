@@ -7,6 +7,10 @@ const report = twoScoopsReport()
 const bet = (ticker: string) => report.bets.find((b) => b.ticker === ticker)!
 
 describe('twoScoopsReport', () => {
+  it('finds a trade for every risk, so nothing is left without a market', () => {
+    expect(report.unhedgedRisks).toEqual([])
+  })
+
   it("hedges Two Scoops Creamery's risks, but not its locked-in dairy", () => {
     expect(report.bets.map((b) => b.ticker)).toEqual(['MOCK-RAIN', 'MOCK-HEAT', 'MOCK-POWER', 'MOCK-GAS', 'MOCK-FED', 'MOCK-CPI'])
     expect(bet('MOCK-RAIN').market).toContain('Austin, TX')

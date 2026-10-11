@@ -3,7 +3,7 @@ import { Fragment, useState, type KeyboardEvent } from 'react'
 import TradeImpactChart from '../components/TradeImpactChart'
 import { explainTrade } from '../report/explainTrade'
 import { combinedNet, stakedPerYear, varianceMitigation } from '../report/tradeImpact'
-import type { Bet, HedgeReport } from '../types'
+import type { Bet, HedgeReport, UnhedgedRisk } from '../types'
 
 type ResultsPageProps = { report: HedgeReport; onStartOver: () => void }
 
@@ -140,18 +140,40 @@ function HedgePlan({ report }: { report: HedgeReport }) {
   )
 }
 
+function UnhedgedRisks({ risks }: { risks: UnhedgedRisk[] }) {
+  return (
+    <section className="unhedged" aria-labelledby="unhedged-heading">
+      <h2 id="unhedged-heading">Risks without a Kalshi market</h2>
+      <ul>
+        {risks.map((risk) => (
+          <li key={risk.factor}>
+            <strong>{risk.factor}</strong>
+            <span>{risk.explanation}</span>
+            <span className="unhedged-reason">{risk.reason}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function EmptyPlan({ foundRisks }: { foundRisks: boolean }) {
+  if (foundRisks) return <p className="empty-plan">We found risks, but none has a matching Kalshi market yet. They're listed below.</p>
+  return (
+    <p className="empty-plan">
+      No clear hedges found. Nothing you described lines up with a market we can bet on. Try adding more detail about
+      what your business relies on and what has hurt it before.
+    </p>
+  )
+}
+
 function ResultsPage({ report, onStartOver }: ResultsPageProps) {
+  const foundRisks = report.unhedgedRisks.length > 0
   return (
     <section className="results">
       <h1>Your hedging plan</h1>
-      {report.bets.length > 0 ? (
-        <HedgePlan report={report} />
-      ) : (
-        <p className="empty-plan">
-          No clear hedges found. Nothing you described lines up with a market we can bet on. Try adding more detail about
-          what your business relies on and what has hurt it before.
-        </p>
-      )}
+      {report.bets.length > 0 ? <HedgePlan report={report} /> : <EmptyPlan foundRisks={foundRisks} />}
+      {foundRisks && <UnhedgedRisks risks={report.unhedgedRisks} />}
       <button type="button" onClick={onStartOver}>Start over</button>
     </section>
   )

@@ -3,7 +3,7 @@ import json
 import httpx
 import pytest
 
-from app.akamai_client import AkamaiApiError, AkamaiConfig, AkamaiConfigError, chat_complete
+from app.akamai_client import DEFAULT_REQUEST_TIMEOUT_SECONDS, AkamaiApiError, AkamaiConfig, AkamaiConfigError, chat_complete
 
 FAKE_CONFIG = AkamaiConfig(base_url="https://fake.test/v1", api_key="test-key-123", chat_model="hackathon-chat")
 
@@ -43,7 +43,9 @@ def test_chat_complete_sends_expected_request():
     assert captured["json"] == {
         "model": "hackathon-chat",
         "messages": [{"role": "user", "content": "hi"}],
-        "temperature": 0.2,
+        "temperature": 0.0,
+        "seed": 0,
+        "max_tokens": 4096,
     }
 
 
@@ -152,4 +154,47 @@ def test_chat_complete_uses_default_timeout_when_no_client_given(monkeypatch):
 
     chat_complete([{"role": "user", "content": "hi"}], config=FAKE_CONFIG)
 
-    assert captured_kwargs.get("timeout") == 60.0
+    assert captured_kwargs.get("timeout") == DEFAULT_REQUEST_TIMEOUT_SECONDS
+
+
+def _captured_body(**kwargs) -> dict:
+    captured = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["json"] = json.loads(request.content)
+        return httpx.Response(200, json={"choices": [{"message": {"content": "OK"}}]})
+
+    chat_complete([{"role": "user", "content": "hi"}], config=FAKE_CONFIG, client=httpx.Client(transport=httpx.MockTransport(handler)), **kwargs)
+    return captured["json"]
+
+
+def test_chat_complete_defaults_to_temperature_zero_and_fixed_seed():
+    body = _captured_body()
+
+    assert body["temperature"] == 0.0
+    assert body["seed"] == 0
+
+
+def test_chat_complete_sends_json_schema_response_format():
+    schema = {"type": "object"}
+
+    assert _captured_body(response_schema=schema)["response_format"] == {"type": "json_schema", "json_schema": {"name": "response", "schema": schema, "strict": True}}
+
+
+def test_chat_complete_omits_response_format_without_schema():
+    assert "response_format" not in _captured_body()
+
+
+def test_chat_complete_asks_for_enough_output_tokens():
+    assert _captured_body()["max_tokens"] == 4096
+
+
+def test_chat_complete_raises_when_the_reply_was_cut_off():
+    client = _client_with_response(200, json_body={"choices": [{"message": {"content": '{"a": "trunc'}, "finish_reason": "length"}]})
+
+    with pytest.raises(AkamaiApiError, match="cut off"):
+        chat_complete([{"role": "user", "content": "hi"}], config=FAKE_CONFIG, client=client)
+
+
+def test_model_calls_allow_three_minutes_for_slow_replies():
+    assert DEFAULT_REQUEST_TIMEOUT_SECONDS == 180.0
