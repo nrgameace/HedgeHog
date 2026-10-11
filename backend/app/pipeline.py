@@ -1,7 +1,6 @@
 from dataclasses import replace
 
-from app.backtest import cap_amount_to_shortfall, scale_amounts_to_budget
-from app.contract_period import stake_for_month
+from app.backtest import full_cover_stake, scale_amounts_to_budget
 from app.factor_relevance import drop_stale_factors
 from app.financial_history import ProfitHistory, build_profit_history, monthly_notes
 from app.hedge_report import build_hedge_report
@@ -24,16 +23,17 @@ def _fit_to_budget(bets: list[PlannedBet], risk_budget: str, history: ProfitHist
     have used, so the over-cover goes before anything is squeezed to fit.
     """
     by_ticker = {market.ticker: market for market in markets}
-    # Scale to the period first: a daily series needs about thirty contracts to
-    # cover a month, so a per-contract stake understates a month of cover
-    # thirtyfold. Then cap, so the payout still cannot exceed the actual hole.
-    period_matched = [replace(bet, amount_usd=stake_for_month(bet.amount_usd, bet.ticker)) for bet in bets]
-    capped = [
-        replace(bet, amount_usd=cap_amount_to_shortfall(bet.amount_usd, _price_for_side(by_ticker[bet.ticker], bet.side), bet.trade_months, history))
-        for bet in period_matched
+    # Size every trade at full cover first - the stake whose payout fills the
+    # deepest month it is placed in - then scale the whole set down to fit the
+    # budget. In that order the budget is spent on the biggest holes rather than
+    # left unused: the old path started from the model's guessed amount and could
+    # only shrink it, so a $400 guess stayed $400 while $800 a month sat idle.
+    wanted = [
+        (full_cover_stake(_price_for_side(by_ticker[bet.ticker], bet.side), bet.trade_months, history), bet.trade_months)
+        for bet in bets
     ]
-    amounts = scale_amounts_to_budget([(bet.amount_usd, bet.trade_months) for bet in capped], parse_monthly_budget(risk_budget))
-    return [replace(bet, amount_usd=amount) for bet, amount in zip(capped, amounts)]
+    amounts = scale_amounts_to_budget(wanted, parse_monthly_budget(risk_budget))
+    return [replace(bet, amount_usd=amount) for bet, amount in zip(bets, amounts)]
 
 
 def _no_candidate_reason(category: HedgeableCategory, city: str | None) -> str:
